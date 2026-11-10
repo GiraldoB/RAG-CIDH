@@ -3,9 +3,12 @@
 Versión entregada: commit `9dd6cc8` (rama `main`).
 Versión corregida: rama `correcciones-fase-1-2` (commit `2c4c516` y siguientes).
 
-El notebook se ejecutó **completo, de principio a fin, en local** (sección 5). Todas sus salidas corresponden a esa ejecución. Pero el corpus local está **incompleto**: tiene 199 de las 597 sentencias (2020–2026) y 148 de los 290 resúmenes, porque solo se descargó la primera parte del zip de Drive. Las cifras del notebook todavía no son las del corpus completo.
+El notebook se ejecutó **completo, de principio a fin, en local y con el corpus completo**: las 597 sentencias y los 290 resúmenes, descargados desde cero con el scraper del propio notebook (sección 6). Todas las salidas corresponden a esa ejecución.
 
-Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 39 comprobaciones). Primero se validaron sobre 10 sentencias reales (sección 4) y luego con la ejecución local (sección 5); de ambas validaciones salieron cambios adicionales.
+Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 50 comprobaciones). Se validaron en tres etapas, y de cada una salieron cambios adicionales:
+- sobre 10 sentencias reales (sección 4);
+- con una primera ejecución local de 199 sentencias de 2020–2026 (sección 5);
+- con el corpus completo, que incluye las sentencias de 1987–2019 con formatos más antiguos (sección 6).
 
 ---
 
@@ -131,7 +134,7 @@ Las notas al final de los votos, numeradas en romanos (Cuadra Bravo, págs. 118�
 
 ### Cómo se ejecutó
 - **Datos:** los PDF en `casos/`, dentro de la carpeta del proyecto, con `CORTEIDH_BASE` apuntando a esa carpeta. Las salidas regenerables (`corpus/`, `procesado/`) y los PDF quedan fuera de git (`.gitignore`).
-- **Entorno:** Python 3.11 con spaCy 3.8, PyTorch 2.11 con CUDA y una GPU RTX 4070 para los embeddings. La ejecución completa tarda unos 8 minutos con 199 sentencias.
+- **Entorno:** Python 3.11 con spaCy 3.8, PyTorch 2.11 con CUDA y una GPU RTX 4070 para los embeddings. La ejecución completa tarda unos 8 minutos con 199 sentencias y unos 19 minutos con las 597.
 - **Salidas:** se quitaron las barras de progreso y los avisos de pip, que solo eran ruido.
 
 ### 5.1 Sin scraping fuera de Colab
@@ -140,43 +143,91 @@ Las notas al final de los votos, numeradas en romanos (Cuadra Bravo, págs. 118�
 
 ### 5.2 Título de puntos resolutivos unido a la línea siguiente
 - **Qué:** la parte `resolutivos` se activa con cualquier línea en mayúsculas que **empiece** por «[IX.] PUNTOS RESOLUTIVOS». Antes la línea tenía que ser exactamente ese título.
-- **Por qué:** la unión de títulos de varias líneas producía «IX. PUNTOS RESOLUTIVOS LA CORTE DECLARA,» o «V. PUNTOS RESOLUTIVOS POR TANTO, LA CORTE», y 5 sentencias quedaban sin resolutivos. Ahora se detectan en 198 de 199. La que falta es una resolución de supervisión de cumplimiento, que no tiene esa sección.
+- **Por qué:** la unión de títulos de varias líneas producía «IX. PUNTOS RESOLUTIVOS LA CORTE DECLARA,» o «V. PUNTOS RESOLUTIVOS POR TANTO, LA CORTE», y 5 sentencias quedaban sin resolutivos. Ahora se detectan en 198 de 199. La que faltaba es una resolución de supervisión de cumplimiento, que se resolvió con el cambio 6.2.
 
 ### 5.3 Asterisco en títulos y Estados
 - **Qué:** `extraer_metadata` quita el asterisco de llamada de nota del título.
 - **Por qué:** «caso moya chacón y otro vs. costa rica*» dejaba «costa rica*» como Estado, y eso rompe los filtros por país. Ocurría en 6 títulos y 4 Estados.
 
-### Resultados (199 sentencias, 2020–2026)
+Los resultados de esa primera ejecución (199 sentencias) quedaron reemplazados por los del corpus completo, en la sección 6.
+
+---
+
+## 6. Corpus completo: descarga desde cero y formatos antiguos
+
+### Cómo se descargó
+- **Scraper:** se ejecutó el del notebook (celdas de configuración y de funciones) fuera de Jupyter, con `REFRESCAR_URLS = True` y la carpeta `casos/` vacía. La copia parcial anterior se guardó aparte.
+- **Lista de casos:** el buscador devolvió 597 casos en los 7 rangos de fechas. Ningún rango llegó al tope de unos 200 resultados, así que no se perdió ninguno. La lista queda en `corpus/casos_buscador.parquet`.
+- **Descarga:** tardó 82 minutos (unos 8 s por caso). Falló un solo caso («no se encontró la sentencia en el menú Descargar»), y se descargó bien al reintentar.
+- **Resultado:** 597 sentencias y 290 resúmenes. Dos sentencias del caso Maya Kaqchikel de Sumpango tienen texto idéntico y se conserva una, así que quedan 596 en el corpus.
+
+### 6.1 Sentencias en inglés marcadas como «Español»
+- **Qué:** el scraper prueba todas las versiones de la sentencia marcadas «Español» y descarta las que están en inglés («INTER-AMERICAN COURT» en la primera página). `detectar_idioma` reconoce ahora también el inglés, y la tabla de calidad cuenta los documentos descartados por idioma.
+- **Por qué:** en el caso Girón y otro vs. Guatemala, el sitio ofrece dos PDF marcados «Español», y el primero es la traducción al inglés. Se indexaba un texto en inglés como si fuera español, sin título, fecha ni Estado. Además, la fila «sentencias en portugués» se calculaba después de filtrar por español, así que siempre daba 0.
+
+### 6.2 Parte dispositiva sin el título «PUNTOS RESOLUTIVOS»
+- **Qué:** la parte `resolutivos` también se abre con una línea sola en mayúsculas como «LA CORTE,», «DECIDE:», «RESUELVE:», «POR TANTO:» u «OPERATIVE PARAGRAPHS». El bloque de firmas acepta además «Redactada en castellano».
+- **Por qué:** muchas sentencias antiguas no tienen el título «PUNTOS RESOLUTIVOS». Su parte dispositiva quedaba pegada al último párrafo del cuerpo, en 75 de las 596 sentencias; su mediana es de 1998 y solo 9 son posteriores a 2005. Ahora quedan 6.
+
+### 6.3 El índice abría la parte resolutivos
+- **Qué:** las líneas del índice (con puntos guía: «XI. PUNTOS RESOLUTIVOS ........ 85») no abren partes ni cuentan como párrafos numerados. Si aparece «PUNTOS RESOLUTIVOS» y luego el título «I. ...» sin ningún punto resolutivo numerado entre ambos, era el índice y se vuelve al cuerpo.
+- **Por qué:** este error ya estaba en la versión anterior. En las sentencias con índice, una entrada numerada («1. Admisión de la prueba ..... 8») contaba como primer párrafo, y la entrada «PUNTOS RESOLUTIVOS» del índice abría la parte resolutivos. Entonces la sentencia entera quedaba en esa parte: en 15 sentencias, más del 30 % del texto, y en algunas el 97 %. Ahora queda 1, que se explica en las limitaciones.
+
+### 6.4 Metadatos con formatos antiguos
+- **Fechas:** se aceptan fechas sin «de» («19 de noviembre 1999», «6 mayo de 2008», «21 NOVIEMBRE DE 2018») y documentos que dicen «Sentencia del …» o «Resolución de la Corte …».
+- **Títulos:** si el encabezado no trae «CASO» («VICKY HERNÁNDEZ Y OTRAS VS. HONDURAS»), el título se toma entre «DERECHOS HUMANOS» y la fecha. Se descartan los candidatos que contienen «la Corte Interamericana», que son del primer párrafo («En el caso X, la Corte…»).
+- **Título y Estado:** terminan en el país. Antes, «caso x vs. perú (interpretación de la sentencia …)» dejaba la descripción dentro del Estado. Así las sentencias de interpretación se agrupan con su caso.
+- **Estados:** se quitan las llamadas de nota pegadas («colombia1», «guatemala∗») y se unifican nombres oficiales: «estados unidos mexicanos» → «méxico», «suriname» → «surinam», «estado plurinacional de bolivia» → «bolivia» y «república federativa del brasil» → «brasil».
+- **Por qué:** con el corpus completo, 12 sentencias quedaban sin título, 25 sin fecha, 27 sin tipo y 16 sin Estado. Además, varios Estados traían texto pegado, como «venezuela, la corte interamericana…». Ahora queda 1 sin título, Estado ni fecha, cuyo PDF no tiene la primera página. Los Estados distintos son 22, todos nombres de país.
+
+### Pruebas añadidas
+`pruebas_notebook.py` tiene ahora 50 comprobaciones. Las nuevas cubren:
+- la parte dispositiva antigua y las firmas «en castellano»;
+- el índice con y sin puntos guía;
+- seis encabezados reales de formatos antiguos (fecha, título y Estado);
+- el idioma inglés.
+
+Las de la parte dispositiva y el índice fallan con la versión anterior del notebook.
+
+### Resultados (corpus completo: 596 sentencias, 1987–2026)
 
 | Indicador | Valor |
 |---|---|
-| Documentos (sentencias + resúmenes) | 347 (199 + 148) |
-| Casos distintos | 161 |
-| Palabras de las sentencias en notas al pie | 28,4 % |
-| Numeración de párrafos del cuerpo | 100 % de cobertura en todas las sentencias |
-| Sentencias con puntos resolutivos detectados | 198 de 199 |
-| Sentencias con votos individuales separados | 93 |
-| Palabras de las sentencias que son votos individuales | 27 % |
-| Párrafos totales / que entran al RAG | 56.132 / 37.957 |
-| Chunks | 24.003 (mediana 190 palabras, máximo 290) |
-| Vocabulario BoW / TF-IDF (1–2-gramas) | 25.935 / 203.730 |
-| Smoke test denso (5 consultas): Recall@1 / @5 / @10, MRR@10 | 0,40 / 0,80 / 1,00 / 0,58 |
+| Documentos (sentencias + resúmenes) | 886 (596 + 290) |
+| Casos distintos | 437 |
+| Tipos de sentencia | 394 fondo, 109 interpretación, 41 excepciones preliminares, 24 otras, 23 reparaciones, 3 competencia, 2 sin tipo |
+| Sentencias sin título / Estado / fecha | 1 / 1 / 1 |
+| Palabras de las sentencias en notas al pie | 27,5 % |
+| Numeración de párrafos del cuerpo | cobertura completa en 560 de 596; mediana 100 %, mínimo 84 % |
+| Sentencias con puntos resolutivos detectados | 590 de 596 |
+| Sentencias con votos individuales separados | 279 |
+| Palabras de las sentencias por parte | cuerpo 80,3 %, votos 16,4 %, resolutivos 2,4 %, firmas 0,8 % |
+| Párrafos totales / que entran al RAG | 146.627 / 114.795 |
+| Chunks | 79.799 (mediana 195 palabras, máximo 290) |
+| Vocabulario BoW / TF-IDF (1–2-gramas) | 50.592 / 591.549 |
+| Smoke test denso (5 consultas): Recall@1 / @5 / @10, MRR@10 | 0,40 / 0,80 / 0,80 / 0,55 |
 
 **Observaciones:**
-- **Votos individuales:** son el 27 % del texto. Antes de separarlos, ese volumen se citaba como si fuera la decisión de la Corte, y esta es la corrección con más impacto.
-- **TF-IDF:** con la consulta normalizada, ahora recupera para «libertad de expresión y periodistas» los mismos casos que los embeddings (Palacio Urrutia, Moya Chacón y Leguizamón Zaván). En la versión entregada emparejaba por «de» e «y».
+- **Votos individuales:** son el 16 % del texto de las sentencias. En la muestra 2020–2026 eran el 27 %, porque los votos de esos años son más extensos. Antes de separarlos, ese volumen se citaba como si fuera la decisión de la Corte.
+- **TF-IDF:** con la consulta normalizada, para «libertad de expresión y periodistas» recupera casos pertinentes, como Palacio Urrutia, Carvajal Carvajal, Fontevecchia y D'Amico, y Moya Chacón. Los embeddings recuperan Granier (RCTV), Fontevecchia, Tristán Donoso y Moya Chacón.
+- **Smoke test:** la consulta 5 («El artículo 67 de la Convención establece que…») no recupera su documento en el top 10. Ese texto se repite en las 109 sentencias de interpretación, así que no identifica un documento. El smoke test no sirve como evaluación, y por eso la evaluación con consultas juzgadas sigue pendiente.
 
 **Limitaciones observadas:**
+- **Parte dispositiva en minúsculas:** 4 sentencias de interpretación de 2008–2009 (García Prieto, Chaparro Álvarez, Ticona Estrada y Valle Jaramillo) y Saramaka (2007) la tienen dentro del último párrafo numerado («214. Por tanto, La Corte Declara, …»). El texto sigue en el índice, pero etiquetado como cuerpo. La sexta sin resolutivos es Loayza Tamayo (fondo, 1997).
+- **Cita de un «RESUELVE:»:** en Cayara (excepciones preliminares, 1993), el cuerpo cita un informe de la Comisión con «RESUELVE:» en una línea sola, y desde ahí todo queda en resolutivos.
+- **Firmas sin «Redactada en»:** en 65 sentencias no hay frase de cierre reconocible antes de las firmas, y los nombres de los jueces quedan pegados al último punto resolutivo.
 - **Lematización:** `es_core_news_sm` produce lemas inexistentes, como «abandonarar» o «abarcarir». Queda para comparar modelos en la evaluación.
 - **Anexos después de las firmas:** en algunas sentencias, las tablas de anexos que siguen a las firmas (listas de víctimas y montos) quedan en la parte `firmas` y fuera del índice.
-- **Marcadores residuales:** el contador amplio marca 324 casos, pero la muestra son sobre todo falsos positivos (horas como «14h47», números citados entre comillas).
-- **Texto de las celdas:** las celdas de texto 20 y 25 citan cifras («mediana 36.574 palabras») que coinciden con esta ejecución de 199 sentencias, no con las 596 de la versión entregada. Hay que revisarlas cuando se ejecute el corpus completo.
+- **Marcadores residuales:** el contador amplio marca 1.158 casos, pero la muestra son sobre todo falsos positivos (horas como «14h47», números citados entre comillas).
+- **Secciones:** 43 sentencias tienen más del 20 % de sus párrafos sin sección. Son sobre todo antiguas (mediana de 1995), cuyos títulos no siguen el patrón «I. TÍTULO EN MAYÚSCULAS». Sigue pendiente (fase 3).
+
+La celda de texto 25 (estadísticos de longitud) se actualizó con las cifras del corpus completo. La 20 sigue siendo válida.
 
 ---
 
 ## Cómo volver a ejecutar
 
-0. **En local:** poner las carpetas de casos en `casos/`, definir `CORTEIDH_BASE` con la ruta del proyecto y ejecutar todo. En Colab no hace falta cambiar nada.
+0. **En local:** definir `CORTEIDH_BASE` con la ruta del proyecto. Si `casos/` está vacía, poner `DESCARGAR = True` en la celda de configuración para descargar los PDF con el scraper (requiere `playwright install chromium`, unos 80 minutos), y luego ejecutar todo. En Colab no hace falta cambiar nada.
 1. **Punto 1:** reconstruir el corpus desde la celda de construcción. No vuelve a descargar los PDF, pero tarda más porque lee el tamaño de fuente de cada renglón.
 2. **Puntos 2 y 3:** ejecutarlos en la misma sesión. El punto 3 usa la normalización del punto 2 y lo avisa con un `assert` si falta.
 3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.
@@ -185,5 +236,5 @@ Las notas al final de los votos, numeradas en romanos (Cuadra Bravo, págs. 118�
 ## Pendiente (fases 3 a 6)
 - Truncamiento de los embeddings a 256 tokens, BM25 y búsqueda híbrida.
 - Evaluación con consultas juzgadas y un smoke test con una muestra aleatoria.
-- Corregir la detección de secciones en las 44 sentencias que fallan y completar los metadatos desde el buscador.
+- Corregir la detección de secciones en las 43 sentencias que fallan (sobre todo antiguas) y completar los metadatos desde el buscador.
 - Actualizar el artículo: definición de RAG, cifras, figuras y referencias.
