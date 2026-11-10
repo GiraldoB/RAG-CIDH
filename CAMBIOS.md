@@ -35,7 +35,7 @@ Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebo
 - **Por qué:** la reconstrucción de párrafos exige que la numeración sea consecutiva. Como los puntos resolutivos y los votos vuelven a empezar en 1, todo lo que venía después del último párrafo se pegaba a él. En las salidas había texto de un voto citado como «Puntos resolutivos, párr. 426» (caso Perozo). En un sistema jurídico eso significa atribuir a la Corte la opinión de un juez.
 - **Límites:**
   - El cambio de parte solo se activa después del primer párrafo numerado, porque el índice de la portada también lista «PUNTOS RESOLUTIVOS».
-  - Las sentencias antiguas que no tienen ese título siguen como antes.
+  - Las sentencias antiguas que no tienen ese título siguen como antes. Se resolvió después, en el cambio 6.2.
 
 ### Regex de párrafos y notas hasta 4 dígitos
 - **Qué:** `RE_NUM_PARR`, `RE_NUM_SOLO` y las regex de marcadores pasan de `\d{1,3}` a `\d{1,4}`. El marcador después de puntuación ahora acepta una coma u otro signo a continuación, como en `EXPRESIÓN)77,`.
@@ -225,16 +225,45 @@ La celda de texto 25 (estadísticos de longitud) se actualizó con las cifras de
 
 ---
 
+## 7. Artículo actualizado
+
+`Articulo_actualizado.docx`, más su vista `Articulo_actualizado.pdf`, es el artículo con las cifras de la ejecución completa (sección 6). Además, se reescribieron las afirmaciones que las correcciones dejaron obsoletas. `Articulo.pdf` queda como la versión entregada. El .docx se generó desde cero, porque solo existía el PDF exportado de Google Docs, y mantiene la estructura, la portada y el formato (Times New Roman 12, A4). Se puede subir a Google Docs para seguir editándolo.
+
+### Qué cambió
+- **Cifras:** todas se tomaron de la ejecución completa: corpus, descriptivos (Tabla 2), diagnóstico, secciones, párrafos, efecto del preprocesamiento (Tabla 3), chunks, TF-IDF, consultas y prueba de humo. El artículo entregado mezclaba cifras de dos ejecuciones: 596 sentencias en el resumen, pero «1 de las 199 sentencias» en la sección 3.4 y «200 casos posteriores a 2020» en las limitaciones.
+- **Figuras:** se regeneraron con la ejecución nueva y se numeraron en orden de aparición. Se agregó la de sentencias por año (Figura 2), ahora que el corpus va de 1987 a 2026.
+- **Afirmaciones corregidas:**
+  - Las notas al pie ya se separan por tamaño de fuente; la limitación decía que quedaban dentro de los párrafos.
+  - Los votos individuales dentro de la sentencia se separan y quedan fuera del índice; antes se decía solo que «se excluyen».
+  - La inconsistencia de los chunks de párrafos largos ya está corregida.
+  - La comparación TF-IDF vs. embeddings se reescribió: con la consulta normalizada, TF-IDF ya recupera apartados de libertad de expresión.
+  - La prueba de humo se reinterpretó: la consulta que falla repite el artículo 67, que aparece en las 109 sentencias de interpretación.
+  - El scraper reinicia el navegador; no recarga la página.
+- **Contenido nuevo:**
+  - la distinción entre sentencia y caso (437 casos) y los tipos de sentencia;
+  - las partes de la sentencia en el pipeline;
+  - los formatos antiguos, en el diagnóstico y como limitación;
+  - la separación de notas en la extracción;
+  - la sección 6 «Trabajo siguiente», que el texto citaba y no existía;
+  - la lista de referencias, que faltaba. Se agregó Robertson y Zaragoza (2009) por la mención de BM25.
+- **Tabla 3:** la reducción de texto en la limpieza de las sentencias pasa de «menos de 1 %» a cerca del 25 %. Casi todo son las notas al pie, que se guardan aparte y no se pierden.
+
+### Pendiente de revisar por el grupo
+- **Portada:** conserva la fecha «04 de octubre de 2026» de la entrega original.
+- **Referencias:** conviene verificarlas en sus fuentes antes de entregar.
+
+---
+
 ## Cómo volver a ejecutar
 
 0. **En local:** definir `CORTEIDH_BASE` con la ruta del proyecto. Si `casos/` está vacía, poner `DESCARGAR = True` en la celda de configuración para descargar los PDF con el scraper (requiere `playwright install chromium`, unos 80 minutos), y luego ejecutar todo. En Colab no hace falta cambiar nada.
 1. **Punto 1:** reconstruir el corpus desde la celda de construcción. No vuelve a descargar los PDF, pero tarda más porque lee el tamaño de fuente de cada renglón.
 2. **Puntos 2 y 3:** ejecutarlos en la misma sesión. El punto 3 usa la normalización del punto 2 y lo avisa con un `assert` si falta.
 3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.
-4. **Artículo:** actualizar todas las cifras del artículo con esta ejecución.
+4. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `Articulo_actualizado.docx` (sección 7).
 
 ## Pendiente (fases 3 a 6)
 - Truncamiento de los embeddings a 256 tokens, BM25 y búsqueda híbrida.
 - Evaluación con consultas juzgadas y un smoke test con una muestra aleatoria.
 - Corregir la detección de secciones en las 43 sentencias que fallan (sobre todo antiguas) y completar los metadatos desde el buscador.
-- Actualizar el artículo: definición de RAG, cifras, figuras y referencias.
+- Artículo: revisar la versión actualizada y llevarla al Google Doc (sección 7).
