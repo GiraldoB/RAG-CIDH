@@ -3,9 +3,9 @@
 Versión entregada: commit `9dd6cc8` (rama `main`).
 Versión corregida: rama `correcciones-fase-1-2` (commit `2c4c516` y siguientes).
 
-El notebook corregido **aún no se ha ejecutado con el corpus completo** (596 sentencias en Google Drive). Las funciones nuevas se probaron con datos sintéticos (`pruebas_notebook.py`, 37 comprobaciones) y los puntos 1 y 2 se ejecutaron sobre 10 sentencias reales de 2025 (sección 4). Esa validación motivó tres cambios adicionales, descritos en la sección 4.
+El notebook se ejecutó **completo, de principio a fin, en local** (sección 5). Todas sus salidas corresponden a esa ejecución. Pero el corpus local está **incompleto**: tiene 199 de las 597 sentencias (2020–2026) y 148 de los 290 resúmenes, porque solo se descargó la primera parte del zip de Drive. Las cifras del notebook todavía no son las del corpus completo.
 
-Las celdas que no se modificaron conservan las salidas de la ejecución entregada, así que sus cifras (EDA, gráficos) corresponden al pipeline anterior hasta que se vuelva a ejecutar el notebook.
+Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 39 comprobaciones). Primero se validaron sobre 10 sentencias reales (sección 4) y luego con la ejecución local (sección 5); de ambas validaciones salieron cambios adicionales.
 
 ---
 
@@ -127,8 +127,56 @@ Las notas al final de los votos, numeradas en romanos (Cuadra Bravo, págs. 118�
 
 ---
 
+## 5. Ejecución local del notebook
+
+### Cómo se ejecutó
+- **Datos:** los PDF en `casos/`, dentro de la carpeta del proyecto, con `CORTEIDH_BASE` apuntando a esa carpeta. Las salidas regenerables (`corpus/`, `procesado/`) y los PDF quedan fuera de git (`.gitignore`).
+- **Entorno:** Python 3.11 con spaCy 3.8, PyTorch 2.11 con CUDA y una GPU RTX 4070 para los embeddings. La ejecución completa tarda unos 8 minutos con 199 sentencias.
+- **Salidas:** se quitaron las barras de progreso y los avisos de pip, que solo eran ruido.
+
+### 5.1 Sin scraping fuera de Colab
+- **Qué:** `DESCARGAR = EN_COLAB`.
+- **Por qué:** con `True`, ejecutar el notebook en local habría vuelto a descargar todo el sitio de la Corte. Fuera de Colab se usan los PDF que ya están en `CASOS_DIR`.
+
+### 5.2 Título de puntos resolutivos unido a la línea siguiente
+- **Qué:** la parte `resolutivos` se activa con cualquier línea en mayúsculas que **empiece** por «[IX.] PUNTOS RESOLUTIVOS». Antes la línea tenía que ser exactamente ese título.
+- **Por qué:** la unión de títulos de varias líneas producía «IX. PUNTOS RESOLUTIVOS LA CORTE DECLARA,» o «V. PUNTOS RESOLUTIVOS POR TANTO, LA CORTE», y 5 sentencias quedaban sin resolutivos. Ahora se detectan en 198 de 199. La que falta es una resolución de supervisión de cumplimiento, que no tiene esa sección.
+
+### 5.3 Asterisco en títulos y Estados
+- **Qué:** `extraer_metadata` quita el asterisco de llamada de nota del título.
+- **Por qué:** «caso moya chacón y otro vs. costa rica*» dejaba «costa rica*» como Estado, y eso rompe los filtros por país. Ocurría en 6 títulos y 4 Estados.
+
+### Resultados (199 sentencias, 2020–2026)
+
+| Indicador | Valor |
+|---|---|
+| Documentos (sentencias + resúmenes) | 347 (199 + 148) |
+| Casos distintos | 161 |
+| Palabras de las sentencias en notas al pie | 28,4 % |
+| Numeración de párrafos del cuerpo | 100 % de cobertura en todas las sentencias |
+| Sentencias con puntos resolutivos detectados | 198 de 199 |
+| Sentencias con votos individuales separados | 93 |
+| Palabras de las sentencias que son votos individuales | 27 % |
+| Párrafos totales / que entran al RAG | 56.132 / 37.957 |
+| Chunks | 24.003 (mediana 190 palabras, máximo 290) |
+| Vocabulario BoW / TF-IDF (1–2-gramas) | 25.935 / 203.730 |
+| Smoke test denso (5 consultas): Recall@1 / @5 / @10, MRR@10 | 0,40 / 0,80 / 1,00 / 0,58 |
+
+**Observaciones:**
+- **Votos individuales:** son el 27 % del texto. Antes de separarlos, ese volumen se citaba como si fuera la decisión de la Corte, y esta es la corrección con más impacto.
+- **TF-IDF:** con la consulta normalizada, ahora recupera para «libertad de expresión y periodistas» los mismos casos que los embeddings (Palacio Urrutia, Moya Chacón y Leguizamón Zaván). En la versión entregada emparejaba por «de» e «y».
+
+**Limitaciones observadas:**
+- **Lematización:** `es_core_news_sm` produce lemas inexistentes, como «abandonarar» o «abarcarir». Queda para comparar modelos en la evaluación.
+- **Anexos después de las firmas:** en algunas sentencias, las tablas de anexos que siguen a las firmas (listas de víctimas y montos) quedan en la parte `firmas` y fuera del índice.
+- **Marcadores residuales:** el contador amplio marca 324 casos, pero la muestra son sobre todo falsos positivos (horas como «14h47», números citados entre comillas).
+- **Texto de las celdas:** las celdas de texto 20 y 25 citan cifras («mediana 36.574 palabras») que coinciden con esta ejecución de 199 sentencias, no con las 596 de la versión entregada. Hay que revisarlas cuando se ejecute el corpus completo.
+
+---
+
 ## Cómo volver a ejecutar
 
+0. **En local:** poner las carpetas de casos en `casos/`, definir `CORTEIDH_BASE` con la ruta del proyecto y ejecutar todo. En Colab no hace falta cambiar nada.
 1. **Punto 1:** reconstruir el corpus desde la celda de construcción. No vuelve a descargar los PDF, pero tarda más porque lee el tamaño de fuente de cada renglón.
 2. **Puntos 2 y 3:** ejecutarlos en la misma sesión. El punto 3 usa la normalización del punto 2 y lo avisa con un `assert` si falta.
 3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.

@@ -97,6 +97,8 @@ for desc, esperado in [("Excepciones Preliminares, Fondo, Reparaciones y Costas"
 meta = G["extraer_metadata"](["CORTE INTERAMERICANA DE DERECHOS HUMANOS\nCASO PRUEBA Y OTROS VS. PERÚ\n"
                               "SENTENCIA DE 24 DE ENERO DE 2024\n(Excepciones Preliminares, Fondo, Reparaciones y Costas)\n"])
 check(meta["tipo_sentencia"] == "fondo" and meta["anio"] == 2024, f"metadatos: {meta}")
+meta = G["extraer_metadata"](["CASO MOYA CHACÓN Y OTRO VS. COSTA RICA*\nSENTENCIA DE 23 DE MAYO DE 2022\n"])
+check(meta["titulo"] == "caso moya chacón y otro vs. costa rica" and meta["estado"] == "costa rica", f"asterisco: {meta}")
 
 # ── 3. Segmentación: cuerpo, resolutivos y votos ──
 lineas = ["CORTE INTERAMERICANA DE DERECHOS HUMANOS", "CASO PRUEBA VS. PAÍS", "Tabla de Contenido",
@@ -132,6 +134,8 @@ check(filas.loc[filas.es_portada, "orden"].max() < cu[cu.num_parrafo == 1].orden
       and not filas.loc[filas.texto.str.contains("Texto del párrafo"), "es_portada"].any(), "portada mal marcada")
 t_rot = G["limpiar_texto"]("1. Uno.\nA.1. Derecho a la vida\nD.1.1. Subtítulo\nla Corte.15 dijo", 1)[0]
 check("A.1." in t_rot and "D.1.1." in t_rot and "Corte.15" not in t_rot, f"rótulos con número: {t_rot!r}")
+_, _, bl = G["limpiar_texto"]("1. Uno.\nIX\nPUNTOS RESOLUTIVOS\nLA CORTE DECLARA,\n1. El Estado es responsable.", 1)
+check(any(pa == "resolutivos" and not t and "responsable" in x for pa, t, x in bl), f"título de resolutivos unido: {bl}")
 print("stats:", {k: stats[k] for k in ("inicio_resolutivos", "inicio_voto", "titulos", "parrafos_numerados")})
 
 # ── 4. Normalización ──

@@ -1,0 +1,5 @@
+# Datos y salidas regenerables del notebook (ejecución local con CORTEIDH_BASE = esta carpeta)
+casos/
+corpus/
+procesado/
+.ipynb_checkpoints/
