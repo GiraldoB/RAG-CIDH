@@ -107,7 +107,7 @@ lineas += [f"{n}. Texto del párrafo {n} con varias palabras de relleno." for n 
 lineas += ["XII", "PUNTOS RESOLUTIVOS", "1002. Por tanto,", "LA CORTE", "DECLARA,", "Por unanimidad, que:",
            "1. El Estado es responsable por la violación del artículo 13 de la Convención.",
            "2. El Estado es responsable por la violación del artículo 8.1.",
-           "Redactada en español en San José, Costa Rica.",
+           "Corte IDH. Caso Prueba Vs. País. Sentencia de 1 de enero de 2024.",
            "VOTO CONCURRENTE DEL JUEZ FULANO DE TAL", "1. En este voto expreso mi opinión.", "2. Segundo párrafo del voto."]
 txt, stats, bloques = G["limpiar_texto"]("\n".join(lineas), 10)
 filas = pd.DataFrame(G["segmentar_parrafos"]("d1_sentencia", bloques))
@@ -124,6 +124,14 @@ p1 = cu[cu.num_parrafo == 1].texto.iloc[0]
 p2 = cu[cu.num_parrafo == 2].texto.iloc[0]
 check("misma del" in p1 and "(LIBERTAD)," in p2, f"marcadores: {p1!r} {p2!r}")
 check(cu[cu.num_parrafo == 1].seccion.iloc[0] == "I. INTRODUCCIÓN DE LA CAUSA", "sección del párrafo 1")
+fi = filas[filas.parte == "firmas"]
+check(len(fi) == 1 and fi.texto.iloc[0].startswith("Corte IDH. Caso Prueba"), f"firmas: {fi.texto.tolist()}")
+check(not re_.texto.str.contains("Corte IDH").any(), "las firmas quedaron pegadas al último resolutivo")
+filas["es_portada"] = G["marcar_portada"](filas)
+check(filas.loc[filas.es_portada, "orden"].max() < cu[cu.num_parrafo == 1].orden.iloc[0]
+      and not filas.loc[filas.texto.str.contains("Texto del párrafo"), "es_portada"].any(), "portada mal marcada")
+t_rot = G["limpiar_texto"]("1. Uno.\nA.1. Derecho a la vida\nD.1.1. Subtítulo\nla Corte.15 dijo", 1)[0]
+check("A.1." in t_rot and "D.1.1." in t_rot and "Corte.15" not in t_rot, f"rótulos con número: {t_rot!r}")
 print("stats:", {k: stats[k] for k in ("inicio_resolutivos", "inicio_voto", "titulos", "parrafos_numerados")})
 
 # ── 4. Normalización ──

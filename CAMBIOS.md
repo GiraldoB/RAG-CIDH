@@ -1,0 +1,141 @@
+# Cambios al notebook: fases 1 y 2 de la revisión
+
+Versión entregada: commit `9dd6cc8` (rama `main`).
+Versión corregida: rama `correcciones-fase-1-2` (commit `2c4c516` y siguientes).
+
+El notebook corregido **aún no se ha ejecutado con el corpus completo** (596 sentencias en Google Drive). Las funciones nuevas se probaron con datos sintéticos (`pruebas_notebook.py`, 37 comprobaciones) y los puntos 1 y 2 se ejecutaron sobre 10 sentencias reales de 2025 (sección 4). Esa validación motivó tres cambios adicionales, descritos en la sección 4.
+
+Las celdas que no se modificaron conservan las salidas de la ejecución entregada, así que sus cifras (EDA, gráficos) corresponden al pipeline anterior hasta que se vuelva a ejecutar el notebook.
+
+---
+
+## 1. Construcción del corpus (punto 1)
+
+### Notas al pie separadas por tamaño de fuente
+- **Qué:** se agregó la función `separar_notas`. Clasifica como nota cada renglón con fuente menor que la del cuerpo que esté debajo del último renglón del cuerpo de la página. Del cuerpo se quitan los marcadores de nota: dígitos en superíndice o en fuente menor. Quedan las columnas nuevas `texto_cuerpo`, `texto_notas` y `numero_palabras_notas`. `texto_original` no cambia.
+- **Por qué:** el texto de las notas quedaba mezclado dentro de los párrafos y contaminaba los chunks y los embeddings. Por ejemplo, el primer resultado de los embeddings era casi todo texto de notas. Además, quitar los marcadores con regex dejaba casos sin cubrir. Separar las notas no exigía rehacer el corpus: los PDF ya estaban descargados.
+- **Salvaguardas:**
+  - Si un PDF no usa una fuente menor para las notas, todo queda en el cuerpo, igual que antes.
+  - Si la separación falla, el documento se conserva con el texto crudo en lugar de perderse.
+
+### Metadatos nuevos: `tipo_sentencia` y `caso_id`
+- **Qué:** `tipo_sentencia` se toma del paréntesis que sigue a la fecha, por ejemplo «(Excepciones Preliminares, Fondo, Reparaciones y Costas)», y vale fondo, interpretación, excepciones preliminares, reparaciones, competencia u otra. `caso_id` agrupa las sentencias de un mismo caso a partir del título normalizado. La tabla de calidad ahora reporta el número de casos distintos y el porcentaje de palabras que hay en notas.
+- **Por qué:** el artículo confundía «caso» y «sentencia»: hay 596 sentencias, pero un caso puede tener varias. Estos campos también sirven más adelante como filtros de búsqueda.
+- **Limitación:** si el título varía entre sentencias del mismo caso, quedan como casos distintos.
+
+---
+
+## 2. Pipeline de preprocesamiento (punto 2)
+
+### Puntos resolutivos y votos individuales como partes propias
+- **Qué:** cada párrafo lleva ahora una columna `parte`, que vale `cuerpo`, `resolutivos` o `voto` (y `firmas`, sección 4.3). El título «PUNTOS RESOLUTIVOS» y los encabezados «VOTO CONCURRENTE / RAZONADO / DISIDENTE…» abren una parte nueva con su propia numeración. El caso «189. Por tanto,», que continúa la numeración del cuerpo, se asigna al cuerpo.
+- **Por qué:** la reconstrucción de párrafos exige que la numeración sea consecutiva. Como los puntos resolutivos y los votos vuelven a empezar en 1, todo lo que venía después del último párrafo se pegaba a él. En las salidas había texto de un voto citado como «Puntos resolutivos, párr. 426» (caso Perozo). En un sistema jurídico eso significa atribuir a la Corte la opinión de un juez.
+- **Límites:**
+  - El cambio de parte solo se activa después del primer párrafo numerado, porque el índice de la portada también lista «PUNTOS RESOLUTIVOS».
+  - Las sentencias antiguas que no tienen ese título siguen como antes.
+
+### Regex de párrafos y notas hasta 4 dígitos
+- **Qué:** `RE_NUM_PARR`, `RE_NUM_SOLO` y las regex de marcadores pasan de `\d{1,3}` a `\d{1,4}`. El marcador después de puntuación ahora acepta una coma u otro signo a continuación, como en `EXPRESIÓN)77,`.
+- **Por qué:** las sentencias más largas superan los 999 párrafos o las 999 notas, y en un título de sección había quedado un marcador sin quitar.
+
+### Una sola normalización para párrafos, chunks y consultas
+- **Qué:** `normalizar_lote` y `normalizar` aplican el mismo proceso a todo. Además:
+  - **Artículos:** «artículo 8.1» y «artículos 25 y 63.1» pasan a `art_8_1`, `art_25` y `art_63_1`, y se conservan.
+  - **Categoría gramatical:** se descartan pronombres, determinantes, preposiciones, conjunciones y verbos auxiliares.
+  - **Términos de `CONSERVAR`:** las negaciones, «estado», «parte» y «final» se conservan aunque sean cortos o estén en la lista de stopwords.
+- **Por qué:**
+  - El filtro alfabético borraba los números de artículo, que son de los términos más discriminativos del dominio.
+  - El pronombre «él» aparecía como lema en todas las sentencias.
+  - Sobre todo, la consulta TF-IDF no se normalizaba: ver el punto 3.
+- **Comprobado al probar:** la hipótesis de que el lematizador convierte «Estado» en «estar» resultó falsa. Solo «ha estado» se convierte en «estar», y eso es correcto, así que no se cambió. Lo que sí se observó es que `es_core_news_sm` no lematiza palabras en MAYÚSCULAS y deja «derechos humanos» en plural. Eso queda para comparar con otros modelos en la evaluación.
+
+### Verificaciones nuevas
+- **Qué:**
+  - **Marcadores residuales:** se cuentan con un patrón más amplio que el de la limpieza, y se muestran ejemplos.
+  - **Partes:** cuántas sentencias tienen puntos resolutivos o votos detectados, y los percentiles de longitud de los párrafos del cuerpo.
+  - **Notas:** el porcentaje de palabras que hay en notas al pie.
+  - **Lemas:** qué sentencias no tienen los lemas «corte», «caso», «estado», «convención» o «sentencia».
+  - **Celda nueva:** muestra las líneas candidatas a título en las sentencias sin secciones detectadas.
+  - **Revisión manual:** una muestra aleatoria de 20 párrafos se guarda en `muestra_revision_manual.csv`.
+  - **Validación de la numeración:** ahora considera solo el cuerpo.
+- **Por qué:** la verificación anterior («1 palabra con número pegado») usaba la misma regex que la limpieza, así que no podía detectar lo que esa regex no veía. Además, el artículo afirmaba que había 30 lemas presentes en todas las sentencias, cuando el notebook mostraba 4, y no se había investigado.
+
+### Otros cambios
+- **Ejemplo «antes → después»:** ahora usa un párrafo real del cuerpo. Antes mostraba un trozo del índice como «texto limpio».
+- **Secciones:** `seccion_canonica` se guarda en `parrafos.parquet`, y los votos aparecen como «Votos individuales».
+- **Archivos de salida:** los parquet de salida incluyen `caso_id`, `tipo_sentencia`, `parte` y `texto_notas`.
+
+---
+
+## 3. Chunks y recuperación (punto 3)
+
+### Portada, índice, votos y firmas fuera del índice
+- **Qué:** se filtran `es_portada` y las partes `voto` y `firmas` (sección 4.3) antes de armar los chunks.
+- **Por qué:** el artículo decía que la portada y el índice se excluían, pero el código no lo hacía. Los votos no expresan la decisión de la Corte.
+
+### Chunks lematizados de forma consistente
+- **Qué:** los trozos de párrafos largos se normalizan con la misma función que los demás chunks. Antes se guardaban con `subchunk.lower()`.
+- **Por qué:** el vocabulario TF-IDF terminaba lleno de cifras y stopwords (`'0 de'`, `'0 del'`…), y una parte del índice léxico usaba texto sin procesar.
+
+### Consulta TF-IDF normalizada
+- **Qué:** `buscar_tfidf` aplica `normalizar(consulta)` antes de `transform`.
+- **Por qué:** la consulta cruda no coincidía con los lemas: «periodistas» no coincidía con «periodista», y las palabras con mayúscula no coincidían con nada. TF-IDF terminaba emparejando por «de» e «y». Por eso la comparación TF-IDF vs. embeddings del artículo no es válida y hay que repetirla.
+
+### Cabecera y `chunk_id`
+- **Qué:**
+  - La cabecera ya no dice «Caso caso…».
+  - Los puntos resolutivos se citan como «puntos 1–2».
+  - Los chunks sin número de párrafo ya no muestran «párrs. None–None».
+  - Un chunk nunca mezcla secciones ni partes.
+  - `chunk_id` se numera por documento.
+- **Por qué:** eran errores de cita visibles. Además, el `chunk_id` global cambiaba si se modificaba cualquier sentencia anterior.
+- **Reescritura:** `construir_chunks` se reescribió más compacto, sin cambiar las reglas de agrupación: hasta 250 palabras por sección, y los párrafos largos divididos por oraciones con 40 palabras de solape.
+
+---
+
+## 4. Validación con sentencias reales y cambios adicionales
+
+### Qué se ejecutó
+Las funciones de los puntos 1 y 2 del notebook (extracción, separación de notas, metadatos, limpieza y segmentación) se corrieron sobre 10 sentencias de 2025 descargadas localmente: 5 de excepciones preliminares (10–12 páginas) y 5 de fondo (106–136 páginas).
+
+| Comprobación | Resultado |
+|---|---|
+| Palabras en notas al pie | 14–35 % por sentencia; no se encontró texto del cuerpo enviado a notas |
+| Numeración de párrafos del cuerpo | completa en las 10 (0 faltantes; hasta el párrafo 318) |
+| Puntos resolutivos detectados | 10/10 |
+| Votos individuales detectados | todos los anunciados (2–5 por sentencia de fondo, incluido uno en portugués) |
+| Bloque de firmas separado | 10/10 (tras el cambio 4.3) |
+| Marcadores de nota residuales | 1 en total |
+| Longitud de párrafos del cuerpo (p50 / p90 / p99) | 94 / 173 / 276 palabras |
+
+Las notas al final de los votos, numeradas en romanos (Cuadra Bravo, págs. 118–122), también quedan en notas.
+
+### 4.1 Rótulos «A.1.» conservados
+- **Qué:** la regex de marcadores después de puntuación (`RE_MARCA_TRAS_PUNTO`) ya no acepta un punto a continuación del número.
+- **Por qué:** al ampliarla en la fase 2 empezó a borrar el dígito de rótulos de sección como «D.1.», «E.3.» o «B.2.1.», que pasaban a «D..». Era una regresión introducida por la corrección anterior. Se sigue quitando «Corte.15 dijo» y «EXPRESIÓN)77,».
+
+### 4.2 Portada e índice: todo lo anterior al párrafo 1
+- **Qué:** `es_portada` se calcula con la nueva función `marcar_portada`: marca todo lo que está antes del primer párrafo 1 del cuerpo. Si una sentencia no tiene numeración detectada, se usa el criterio anterior (sección «ENCABEZADO»).
+- **Por qué:** el índice de la portada contiene líneas con forma de título («A. Alegatos de las partes…»), así que el índice quedaba asignado a esas secciones y no a «ENCABEZADO». Por eso el filtro de portada no lo excluía, y entraba al índice de búsqueda. En las sentencias de fondo se marcaban 2–3 párrafos como portada; ahora se marcan 5, con el índice incluido.
+
+### 4.3 Bloque de firmas como parte propia
+- **Qué:** la nueva parte `firmas` empieza en la línea «Redactada en español…» (o «Hecha/Dada en…») o, si no la hay, en la referencia «Corte IDH. Caso … Sentencia de …» que la sustituye. Solo se busca después de los puntos resolutivos, porque en el cuerpo y en los votos esas líneas pueden ser citas. Se excluye del índice igual que los votos, y `seccion_canonica` la etiqueta «Firmas».
+- **Por qué:** los nombres de los jueces y la fórmula «Comuníquese y ejecútese» quedaban pegados al último punto resolutivo (60–90 palabras por sentencia). Ese chunk se recuperaría con consultas sobre jueces que no tienen que ver con la decisión.
+
+### Pruebas añadidas
+`pruebas_notebook.py` comprueba ahora que el bloque de firmas se separa y no queda en los resolutivos, que la portada termina antes del párrafo 1 y que «A.1.» y «D.1.1.» se conservan.
+
+---
+
+## Cómo volver a ejecutar
+
+1. **Punto 1:** reconstruir el corpus desde la celda de construcción. No vuelve a descargar los PDF, pero tarda más porque lee el tamaño de fuente de cada renglón.
+2. **Puntos 2 y 3:** ejecutarlos en la misma sesión. El punto 3 usa la normalización del punto 2 y lo avisa con un `assert` si falta.
+3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.
+4. **Artículo:** actualizar todas las cifras del artículo con esta ejecución.
+
+## Pendiente (fases 3 a 6)
+- Truncamiento de los embeddings a 256 tokens, BM25 y búsqueda híbrida.
+- Evaluación con consultas juzgadas y un smoke test con una muestra aleatoria.
+- Corregir la detección de secciones en las 44 sentencias que fallan y completar los metadatos desde el buscador.
+- Actualizar el artículo: definición de RAG, cifras, figuras y referencias.
