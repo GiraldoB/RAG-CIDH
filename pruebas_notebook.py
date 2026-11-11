@@ -230,4 +230,23 @@ G["embeddings"] = emb
 G["df_chunks"] = pd.DataFrame({"caso_id": ["a", "b", "a", "c"]})
 check(G["diversificar"](np.array([0, 1, 2, 3]), k=3) == [0, 3], "diversificar: un resultado por caso y sin casi duplicados")
 check(G["diversificar"](np.array([0, 2, 3]), k=3, max_por_caso=2) == [0, 1, 2], "diversificar: max_por_caso")
+
+# ── 8. Evaluación ──
+from pathlib import Path
+G["BASE_DIR"] = Path(".")
+for marca in ["def recall_at_k(", "def palabras_nombre(titulo):", "def ndcg_at_k(", "def a_documentos("]:
+    cargar(marca)
+ndcg = G["ndcg_at_k"]
+check(abs(ndcg(["a", "b"], {"a": 2, "b": 1}) - 1) < 1e-9, "nDCG del orden ideal = 1")
+check(abs(ndcg(["b", "a"], {"a": 2, "b": 1}) - (1 + 2 / np.log2(3)) / (2 + 1 / np.log2(3))) < 1e-9, "nDCG con el orden invertido")
+check(ndcg(["x", "y"], {"a": 2}) == 0 and ndcg(["x"], {}) == 0, "nDCG sin relevantes recuperados / sin juicios")
+check(G["metricas"](["x", "a"], {"a": 1})["MRR@10"] == 0.5, "MRR@10 en la segunda posición")
+check(G["palabras_nombre"]("caso masacres de ituango vs. colombia") == {"ituango"}, "palabras propias del caso")
+check(G["oraciones_consulta"]("RESUMEN OFICIAL. " + "La Corte analizó la falta de investigación de los hechos y la "
+                              "impunidad que persiste muchos años después. El caso Ituango trata de una masacre ocurrida "
+                              "en el municipio y de sus consecuencias para la población.", "caso masacres de ituango vs. colombia")
+      == ["La Corte analizó la falta de investigación de los hechos y la impunidad que persiste muchos años después."],
+      "oraciones de consulta: sin las que nombran el caso")
+check(G["a_documentos"](np.array([0, 1, 2, 3]), np.array(["d1", "d1", "d2", "d3"], dtype=object), k=2) == ["d1", "d2"],
+      "colapso de chunks a documentos")
 print(f"\nOK: {ok} comprobaciones")

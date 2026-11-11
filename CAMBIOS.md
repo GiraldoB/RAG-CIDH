@@ -1,11 +1,11 @@
-# Cambios al notebook: fases 1 a 3 de la revisión
+# Cambios al notebook: fases 1 a 4 de la revisión
 
 Versión entregada: commit `9dd6cc8` (rama `main`).
 Versión corregida: rama `correcciones-fase-1-2` (commit `2c4c516` y siguientes).
 
 El notebook se ejecutó **completo, de principio a fin, en local y con el corpus completo**: las 597 sentencias y los 290 resúmenes, descargados desde cero con el scraper del propio notebook (sección 6). Todas las salidas corresponden a esa ejecución.
 
-Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 59 comprobaciones). La fase 3 (características y recuperación) está en la sección 8. Las fases 1 y 2 se validaron en tres etapas, y de cada una salieron cambios adicionales:
+Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 66 comprobaciones). La fase 3 (características y recuperación) está en la sección 8 y la fase 4 (evaluación) en la sección 9. Las fases 1 y 2 se validaron en tres etapas, y de cada una salieron cambios adicionales:
 - sobre 10 sentencias reales (sección 4);
 - con una primera ejecución local de 199 sentencias de 2020–2026 (sección 5);
 - con el corpus completo, que incluye las sentencias de 1987–2019 con formatos más antiguos (sección 6).
@@ -314,6 +314,76 @@ Las secciones de representación y recuperación del artículo actualizado (secc
 
 ---
 
+## 9. Fase 4: evaluación con consultas juzgadas (punto 4)
+
+El notebook se ejecutó completo otra vez: 50 minutos, de los cuales 26 son las ablaciones (re-calculan embeddings de tres variantes del índice). `pruebas_notebook.py` tiene ahora 66 comprobaciones (nDCG, extracción de consultas de los resúmenes, colapso de chunks a documentos).
+
+### 9.1 Dos conjuntos de evaluación
+- **A) Resúmenes oficiales, relevancia por documento (290 consultas).** Cada resumen oficial corresponde a una sentencia. Se toma una oración al azar del resumen (semilla 42, de 15 a 45 palabras, 28,7 en promedio) como consulta, y su sentencia es el único documento relevante. Se descartan las oraciones que nombran a las víctimas o al caso y las de trámite («la Sentencia fue notificada…»), para que la consulta no se resuelva por el nombre propio. Los rankings de chunks se colapsan a documentos en orden de aparición.
+- **B) 20 consultas temáticas propias, relevancia por chunk de 0 a 2** (`evaluacion/consultas_propias.csv` y `evaluacion/qrels_consultas_propias.csv`). Ejemplos: «plazo razonable», «control de convencionalidad», «daño al proyecto de vida». Se juzgó el top 10 de los cinco sistemas (TF-IDF, BM25, denso, híbrido e híbrido diversificado): 486 pares, con 241 de relevancia 2, 195 de relevancia 1 y 50 de relevancia 0. **Los juicios los hizo Claude (un modelo de lenguaje), no un experto:** el grupo debe revisarlos, sobre todo los de relevancia 1. El CSV incluye el título, la sección y el inicio de cada chunk para revisarlos sin abrir el notebook.
+- **Cuadernillos de Jurisprudencia (relevancia por párrafo): no se hizo.** El sitio de la Corte (www.corteidh.or.cr) bloquea la descarga automática con una verificación anti-bots, que no se intentó saltar. Si el grupo descarga a mano algunos cuadernillos, sus citas (caso + párrafo por subtema) sirven como juicios de experto por párrafo.
+
+### 9.2 Métricas
+R@1, R@5, R@10, MRR@10 y nDCG@10 (ganancia lineal 0/1/2). En B también P@10 (fracción del top 10 con relevancia ≥ 1), el número de casos distintos en el top 10 y la fracción sin juzgar, que es 0. Los intervalos son del 95 % por bootstrap sobre las consultas (1000 remuestreos). En las ablaciones la diferencia es pareada: misma consulta, variante menos principal.
+
+### 9.3 Resultados
+
+**A) Resúmenes oficiales (por documento):**
+
+| método | R@1 | R@10 | MRR@10 | nDCG@10 |
+|---|---|---|---|---|
+| TF-IDF | 0,74 | 0,92 | 0,80 | 0,83 [0,79–0,87] |
+| BM25 | 0,74 | 0,92 | 0,81 | **0,84** [0,80–0,87] |
+| denso | 0,46 | 0,67 | 0,52 | 0,56 [0,51–0,61] |
+| híbrido | 0,59 | 0,86 | 0,67 | 0,72 [0,68–0,76] |
+
+**B) Consultas propias (por chunk, juicios 0–2):**
+
+| método | nDCG@10 | P@10 | MRR@10 | casos distintos en el top 10 |
+|---|---|---|---|---|
+| TF-IDF | 0,66 [0,59–0,73] | 0,90 | 0,94 | 7,0 |
+| BM25 | 0,76 [0,69–0,82] | 0,93 | 0,98 | 7,0 |
+| denso | 0,86 [0,81–0,90] | 0,95 | 0,98 | 6,8 |
+| híbrido | **0,86** [0,81–0,91] | 0,96 | 1,00 | 7,6 |
+| híbrido diversificado | 0,81 [0,72–0,89] | 0,90 | 1,00 | 10,0 |
+
+Figura 11 (`fig11_evaluacion_metodos.png`): nDCG@10 con sus intervalos en los dos conjuntos.
+
+**Cómo leerlo:** los dos conjuntos miden cosas distintas y ordenan los métodos al revés.
+- En A la consulta describe hechos concretos de un caso (lugares, instituciones, fechas) con vocabulario que la sentencia repite, así que gana lo léxico; es una búsqueda de un documento conocido.
+- En B la consulta es un tema jurídico que se expresa con otras palabras en cada sentencia, y ganan el denso y el híbrido.
+- **El híbrido es el método más robusto:** empata en el primer lugar en B y queda segundo en A, lejos del denso. Es el valor por defecto de `buscar()` y se mantiene.
+- **Diversificar** cuesta 0,05 de nDCG@10 en B (los intervalos se solapan) y sube de 7,6 a 10 los casos distintos en el top 10. Para un RAG que debe mostrar la jurisprudencia de varios casos es un buen intercambio, y se mantiene por defecto. Para preguntas sobre un solo caso conviene `diversificado=False`.
+- Con 20 consultas los intervalos de B son anchos: denso e híbrido no se distinguen.
+
+### 9.4 Ablaciones (conjunto A, Δ nDCG@10 pareado contra la configuración principal)
+
+| variante | BM25 | denso | híbrido |
+|---|---|---|---|
+| sin cabecera de contexto | — | −0,009 [−0,042, +0,026] | **+0,030 [+0,003, +0,058]** |
+| ventana de 256 tokens | — | **−0,035 [−0,062, −0,007]** | −0,020 [−0,043, +0,002] |
+| con notas al pie (26.665 chunks más) | +0,001 [−0,006, +0,010] | +0,005 [−0,004, +0,015] | −0,000 [−0,007, +0,007] |
+| chunks de 150 palabras (144.833 chunks) | −0,001 [−0,025, +0,021] | +0,010 [−0,022, +0,039] | +0,023 [−0,001, +0,050] |
+
+La configuración principal usa chunks de 250 palabras, cabecera, 512 tokens y notas fuera del índice. BM25 no usa la cabecera ni la ventana del modelo, así que esas filas no aplican. TF-IDF no se re-evalúa en las variantes (su resultado principal está en 9.3).
+- **512 tokens se confirma:** con 256 el denso pierde 0,035, y la diferencia es significativa.
+- **Notas al pie:** no cambian nada (±0,01). Se dejan fuera del índice, que así es un 33 % más pequeño.
+- **Cabecera:** en A, quitarla mejora el híbrido en 0,03 (significativo por poco). Una explicación plausible: las consultas de A evitan a propósito el nombre del caso, que es lo que más aporta la cabecera, así que A no puede premiarla. **No se cambia todavía:** falta medirla en B, donde el título y la sección sí pueden ayudar, y con los juicios revisados por el grupo.
+- **Chunks de 150 palabras:** +0,023 en el híbrido, en el límite (el intervalo toca el 0), con 1,8 veces más chunks. No es concluyente.
+
+### Artefactos guardados
+`procesado/evaluacion/` (regenerable, fuera de git):
+- `tabla_metodos_resumenes.csv`, `tabla_metodos_consultas_propias.csv` y `tabla_ablaciones.csv`: las tablas de arriba;
+- `evaluacion_por_consulta.csv`: las métricas por consulta, método y variante;
+- `consultas_resumenes.csv`: las 290 consultas del conjunto A.
+
+`evaluacion/` (en git): las consultas propias y sus juicios.
+
+### Afecta al artículo
+La sección de evaluación del artículo debe reemplazar la prueba de humo por estas tablas y la figura 11. Queda para la fase 5.
+
+---
+
 ## Cómo volver a ejecutar
 
 0. **En local:** definir `CORTEIDH_BASE` con la ruta del proyecto. Si `casos/` está vacía, poner `DESCARGAR = True` en la celda de configuración para descargar los PDF con el scraper (requiere `playwright install chromium`, unos 80 minutos), y luego ejecutar todo. En Colab no hace falta cambiar nada.
@@ -322,9 +392,10 @@ Las secciones de representación y recuperación del artículo actualizado (secc
 3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.
 4. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `Articulo_actualizado.docx` (sección 7).
 
-## Pendiente (fases 4 a 6)
-- Evaluación con consultas juzgadas (fase 4): decide entre TF-IDF, BM25, denso e híbrido, y si conviene diversificar.
+## Pendiente (fases 5 y 6)
+- Revisar los juicios de `evaluacion/qrels_consultas_propias.csv` (hechos por un modelo de lenguaje) y, si se descargan a mano, añadir juicios por párrafo de los Cuadernillos de Jurisprudencia.
+- Decidir la cabecera de contexto y el tamaño de chunk midiéndolos también en las consultas propias (sección 9.4).
 - Opcional de la fase 3: temas (BERTopic o LSA) y comparar e5 con bge-m3.
-- Artículo: llevar las cifras de la sección 8 y la figura 10.
+- Artículo: llevar las cifras de las secciones 8 y 9 y las figuras 10 y 11.
 - Corregir la detección de secciones en las 43 sentencias que fallan (sobre todo antiguas) y completar los metadatos desde el buscador.
 - Artículo: revisar la versión actualizada y llevarla al Google Doc (sección 7).
