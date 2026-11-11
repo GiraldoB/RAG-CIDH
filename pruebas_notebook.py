@@ -201,4 +201,33 @@ check(len(rc) == 1 and "· puntos 1–2" in rc.texto_con_contexto.iloc[0], f"cab
 check(ch.parte.ne("voto").all() and not ch.texto.str.contains("Tabla de Contenido").any(), "voto o portada en el índice")
 check(ch.tipo_chunk.eq("parrafo_largo").sum() >= 2 and ch.num_palabras.max() <= 290, "división de párrafos largos")
 print("cabeceras:", ch.texto_con_contexto.str.split("\n").str[0].iloc[[0, -2, -1]].tolist())
+
+# ── 6. Artículos declarados violados ──
+for marca in ["def articulos_violados(textos):", "UMBRAL_CASI_DUPLICADO = ", "def rrf(*rankings"]:
+    cargar(marca)
+av = G["articulos_violados"]
+check(av(["El Estado es responsable por la violación de los derechos reconocidos en los artículos 8.1 y 25.1 de la "
+          "Convención Americana sobre Derechos Humanos, en relación con el artículo 1.1 del mismo instrumento."]) == [8, 25],
+      "lista con 'y' y omisión de 1.1")
+check(av(["Declara que Honduras ha violado el derecho a la libertad personal reconocido en el artículo 7 de la "
+          "Convención, en conexión con el artículo 1.1 de la misma."]) == [7], "formato antiguo 'ha violado ... de la Convención'")
+check(av(["El Estado es responsable por la violación del derecho a la libertad personal, reconocido en los artículos "
+          "7.3, 7.4 y 7.5, en relación con el artículo 1.1 de la Convención Americana."]) == [7], "tratado nombrado tras 'en relación con'")
+check(av(["El Estado no es responsable por la violación de los artículos 8 y 25 de la Convención Americana.",
+          "El Estado no violó el artículo 4 de la Convención Americana."]) == [], "negaciones")
+check(av(["El Estado es responsable por el incumplimiento de los artículos 1, 6 y 8 de la Convención Interamericana "
+          "para Prevenir y Sancionar la Tortura."]) == [], "otro tratado")
+check(av(["El Estado debe pagar las cantidades fijadas en el artículo 63.1 de la Convención Americana."]) == [],
+      "punto resolutivo sin violación")
+
+# ── 7. Fusión y diversificación ──
+idx_rrf, sc_rrf = G["rrf"]([3, 1, 2], [1, 4])
+check(idx_rrf[0] == 1 and set(idx_rrf) == {1, 2, 3, 4} and sc_rrf[0] > sc_rrf[1], f"rrf: {idx_rrf}")
+import numpy as np
+emb = np.eye(4, dtype=np.float32)
+emb[1] = emb[0]                                            # 0 y 1 son idénticos (casi duplicados)
+G["embeddings"] = emb
+G["df_chunks"] = pd.DataFrame({"caso_id": ["a", "b", "a", "c"]})
+check(G["diversificar"](np.array([0, 1, 2, 3]), k=3) == [0, 3], "diversificar: un resultado por caso y sin casi duplicados")
+check(G["diversificar"](np.array([0, 2, 3]), k=3, max_por_caso=2) == [0, 1, 2], "diversificar: max_por_caso")
 print(f"\nOK: {ok} comprobaciones")

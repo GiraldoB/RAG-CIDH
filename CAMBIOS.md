@@ -1,11 +1,11 @@
-# Cambios al notebook: fases 1 y 2 de la revisión
+# Cambios al notebook: fases 1 a 3 de la revisión
 
 Versión entregada: commit `9dd6cc8` (rama `main`).
 Versión corregida: rama `correcciones-fase-1-2` (commit `2c4c516` y siguientes).
 
 El notebook se ejecutó **completo, de principio a fin, en local y con el corpus completo**: las 597 sentencias y los 290 resúmenes, descargados desde cero con el scraper del propio notebook (sección 6). Todas las salidas corresponden a esa ejecución.
 
-Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 50 comprobaciones). Se validaron en tres etapas, y de cada una salieron cambios adicionales:
+Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 59 comprobaciones). La fase 3 (características y recuperación) está en la sección 8. Las fases 1 y 2 se validaron en tres etapas, y de cada una salieron cambios adicionales:
 - sobre 10 sentencias reales (sección 4);
 - con una primera ejecución local de 199 sentencias de 2020–2026 (sección 5);
 - con el corpus completo, que incluye las sentencias de 1987–2019 con formatos más antiguos (sección 6).
@@ -254,6 +254,66 @@ La celda de texto 25 (estadísticos de longitud) se actualizó con las cifras de
 
 ---
 
+## 8. Fase 3: características y recuperación (punto 3)
+
+El notebook se ejecutó completo otra vez, de principio a fin, con el corpus completo: 23 minutos en una RTX 4070. Las salidas corresponden a esa ejecución. `pruebas_notebook.py` tiene ahora 59 comprobaciones.
+
+### 8.1 Ventana del modelo de embeddings: de 256 a 512 tokens
+`max_seq_length` estaba en 256, con el comentario «baja a 256 si tus chunks son cortos», y los chunks no lo son. Una celda nueva mide cuántos tokens tiene cada chunk con el tokenizador de e5:
+- mediana de 318 tokens, p99 de 449 y máximo de 750, con unos 1,6 tokens por palabra;
+- con 256 tokens se truncaba el **73,6 %** de los chunks: el modelo no veía el final del texto, y en los chunks de 250 palabras perdía cerca de un tercio;
+- con 512 (el máximo de e5) se trunca el **0,1 %**.
+
+El `batch_size` baja de 256 a 128 para que quepa en 12 GB. Calcular los embeddings de los 79.799 chunks tarda unos 150 s.
+
+### 8.2 TF-IDF ajustado y BM25
+- **TF-IDF:** `min_df=3` y `max_df=0.5`. Las características bajan de 591.549 a 348.689. Se descartan bigramas que aparecen en uno o dos chunks (nombres propios, errores de OCR) y términos que aparecen en más de la mitad de los chunks, que no discriminan.
+- **BM25 (`rank_bm25.BM25Okapi`, k1 = 1,5, b = 0,75):** la librería estaba instalada e importada pero no se usaba. Es la línea base léxica estándar, porque satura la frecuencia del término y normaliza por la longitud del chunk. Usa los mismos lemas que TF-IDF.
+
+### 8.3 Búsqueda híbrida, filtros y diversificación
+La búsqueda queda en una sola función, `buscar(consulta, metodo, k, diversificado, **filtros)`. `buscar_tfidf` y `buscar_denso` se mantienen como atajos.
+- **Métodos:** `tfidf`, `bm25`, `denso` e `hibrido`. El híbrido fusiona BM25 y denso con Reciprocal Rank Fusion (k = 60), sobre 100 candidatos de cada uno. RRF usa solo las posiciones, así que no hay que calibrar puntajes de escalas distintas.
+- **Filtros:** `estado`, `anio_min`, `anio_max`, `tipo_sentencia`, `articulo` (artículo de la Convención declarado violado) y `seccion` (sección canónica). Restringen el universo antes de ordenar, en los cuatro métodos. En la búsqueda densa el filtro se aplica dentro de FAISS (`IDSelectorBatch`), así que la búsqueda sigue siendo exacta, y no un top-k filtrado después.
+- **Diversificación:** por defecto se devuelve un resultado por caso y se descartan los casi duplicados de un resultado ya elegido. Sin esto, en la consulta de prueba TF-IDF y BM25 devuelven dos chunks de Carvajal Carvajal entre los cinco primeros.
+
+### 8.4 Características de dominio
+Se añadieron dos columnas a los chunks:
+- **`articulos_violados`:** los artículos de la Convención Americana que la sentencia declara violados en sus puntos resolutivos. La regex busca puntos con «violó / ha violado / violación / incumplimiento» que no estén negados («no es responsable por la violación…»), y toma las listas de artículos cuyo tratado es la Convención Americana («del mismo instrumento», «de la Convención»…). Excluye otros tratados (Belém do Pará, la Convención contra la Tortura) y los artículos 1.1 y 2, que acompañan casi todas las violaciones.
+  - Cubre **373 de las 394 sentencias de fondo**. De las 21 restantes, 11 no declaran ninguna violación (Rico, Galdeano Ibáñez, Fairén Garbi…). Las otras son sentencias antiguas cuya parte dispositiva no se separó completa (Cantos, El Amparo, Loayza Tamayo…) o que remiten a un reconocimiento de responsabilidad (Carpio Nicolle).
+- **`seccion_canonica`:** la sección normalizada del punto 2, heredada por cada chunk (un chunk no mezcla secciones).
+
+Una celda de análisis de contenido (figura 10, `fig10_articulos_violados.png`) muestra:
+- el porcentaje de sentencias de fondo que declara violado cada artículo: el 8 (garantías judiciales) en el 85 %, el 25 (protección judicial) en el 74 %, el 5 (integridad personal) en el 63 %, el 4 (vida) en el 43 % y el 7 (libertad personal) en el 41 %;
+- el mismo porcentaje para los 10 Estados con más sentencias. Por ejemplo, el artículo 4 aparece en el 86 % de las sentencias de Colombia y en el 23 % de las de Argentina.
+
+### 8.5 Casi duplicados entre casos
+La Corte repite párrafos casi literales de su jurisprudencia, como los de costas y gastos, plazo razonable o el artículo 63.1. Se calcularon los 5 vecinos más cercanos de cada chunk con FAISS (24 s). Se marcan las columnas `casi_duplicado_de` y `n_casi_duplicados` cuando un vecino de **otro caso** tiene coseno ≥ 0,97.
+- **El umbral:** e5 comprime las similitudes hacia arriba, y el 0,95 del plan marcaba 8.074 chunks, muchos de ellos paráfrasis con contenido propio. Con 0,97 son **2.274 (2,8 %)**, concentrados en Competencia (20 %), Sin sección (16 %) y Reparaciones (5 %).
+- **Uso:** no se eliminan del índice, porque cada uno pertenece a su caso. Se usan en la diversificación.
+
+### 8.6 Smoke test con 100 chunks al azar
+Antes eran los 5 primeros chunks, todos del mismo documento, con las 25 primeras palabras como consulta. Ahora son 100 chunks del cuerpo elegidos al azar (semilla 42), con 25 palabras seguidas desde un punto al azar. Cuenta como acierto cualquier chunk del mismo documento que comparta párrafo, porque los trozos de un párrafo largo se solapan.
+
+| método | R@1 | R@5 | R@10 | MRR@10 |
+|---|---|---|---|---|
+| TF-IDF | 0,86 | 0,97 | 0,99 | 0,91 |
+| BM25 | 0,85 | 0,94 | 0,99 | 0,89 |
+| denso | 0,36 | 0,54 | 0,61 | 0,45 |
+| híbrido | 0,61 | 0,73 | 0,85 | 0,68 |
+
+**Cómo leerlo:** es una prueba de cordura, no una evaluación. La consulta copia el texto del chunk, así que favorece a los métodos léxicos. El denso no está hecho para recuperar un fragmento literal entre 80 mil chunks parecidos, y arrastra al híbrido. Qué método es mejor para preguntas reales lo decide la evaluación con consultas juzgadas de la fase 4. En las consultas temáticas de prueba, el híbrido diversificado da los resultados más pertinentes: Fontevecchia, Herrera Ulloa y Tristán Donoso para «libertad de expresión y periodistas».
+
+### 8.7 Sección canónica: «Sin sección» separada de la portada
+En las sentencias antiguas sin títulos, los párrafos anteriores al primer título quedaban en la sección ENCABEZADO, y `seccion_canonica` los etiquetaba como «Portada e índice» aunque no lo fueran: 2.988 párrafos de cuerpo, que sí están en el índice. Ahora la portada se toma de `es_portada` y el resto queda como **«Sin sección»**. En la figura 9, «Portada e índice» baja a 1,1 % de las palabras y aparece «Sin sección» con 2,1 %.
+
+### Artefactos guardados
+`chunks.parquet` incluye las columnas nuevas (`articulos_violados`, `seccion_canonica`, `casi_duplicado_de`, `n_casi_duplicados`). Los embeddings y el índice FAISS son los de 512 tokens. BM25 no se guarda porque se reconstruye en segundos desde `texto_normalizado`.
+
+### Afecta al artículo
+Las secciones de representación y recuperación del artículo actualizado (sección 7) usan las cifras anteriores: 256 tokens, 591.549 características TF-IDF y la prueba de humo con 5 consultas. La figura 9 también cambia. Queda para la actualización del artículo en la fase 5.
+
+---
+
 ## Cómo volver a ejecutar
 
 0. **En local:** definir `CORTEIDH_BASE` con la ruta del proyecto. Si `casos/` está vacía, poner `DESCARGAR = True` en la celda de configuración para descargar los PDF con el scraper (requiere `playwright install chromium`, unos 80 minutos), y luego ejecutar todo. En Colab no hace falta cambiar nada.
@@ -262,8 +322,9 @@ La celda de texto 25 (estadísticos de longitud) se actualizó con las cifras de
 3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.
 4. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `Articulo_actualizado.docx` (sección 7).
 
-## Pendiente (fases 3 a 6)
-- Truncamiento de los embeddings a 256 tokens, BM25 y búsqueda híbrida.
-- Evaluación con consultas juzgadas y un smoke test con una muestra aleatoria.
+## Pendiente (fases 4 a 6)
+- Evaluación con consultas juzgadas (fase 4): decide entre TF-IDF, BM25, denso e híbrido, y si conviene diversificar.
+- Opcional de la fase 3: temas (BERTopic o LSA) y comparar e5 con bge-m3.
+- Artículo: llevar las cifras de la sección 8 y la figura 10.
 - Corregir la detección de secciones en las 43 sentencias que fallan (sobre todo antiguas) y completar los metadatos desde el buscador.
 - Artículo: revisar la versión actualizada y llevarla al Google Doc (sección 7).
