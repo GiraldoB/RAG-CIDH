@@ -234,7 +234,7 @@ check(G["diversificar"](np.array([0, 2, 3]), k=3, max_por_caso=2) == [0, 1, 2], 
 # ── 8. Evaluación ──
 from pathlib import Path
 G["BASE_DIR"] = Path(".")
-for marca in ["def recall_at_k(", "def palabras_nombre(titulo):", "def ndcg_at_k(", "def a_documentos("]:
+for marca in ["def recall_at_k(", "def palabras_nombre(titulo):", "def ndcg_at_k(", "def a_documentos(", "def ganancia_cuadernillos("]:
     cargar(marca)
 ndcg = G["ndcg_at_k"]
 check(abs(ndcg(["a", "b"], {"a": 2, "b": 1}) - 1) < 1e-9, "nDCG del orden ideal = 1")
@@ -249,4 +249,10 @@ check(G["oraciones_consulta"]("RESUMEN OFICIAL. " + "La Corte analizó la falta 
       "oraciones de consulta: sin las que nombran el caso")
 check(G["a_documentos"](np.array([0, 1, 2, 3]), np.array(["d1", "d1", "d2", "d3"], dtype=object), k=2) == ["d1", "d2"],
       "colapso de chunks a documentos")
+G["qrels_cuad"] = pd.DataFrame({"consulta_id": ["C1", "C1", "C1"], "doc_id": ["d1", "d1", "d2"],
+                                "num_parrafo": [5, 6, 9], "relevancia": [2, 1, 1]})
+ch = pd.DataFrame({"doc_id": ["d1", "d1", "d2", "d2"], "parte": ["cuerpo", "cuerpo", "resolutivos", "cuerpo"],
+                   "parr_ini": [1, 5, 9, 9], "parr_fin": [4, 7, 9, 9]})
+check(G["ganancia_cuadernillos"](ch) == {"C1": {1: 2, 3: 1}},
+      "párrafos citados -> chunks: mayor grado del chunk y solo partes del cuerpo")
 print(f"\nOK: {ok} comprobaciones")

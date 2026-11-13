@@ -5,7 +5,7 @@ Versión corregida: rama `correcciones-fase-1-2` (commit `2c4c516` y siguientes)
 
 El notebook se ejecutó **completo, de principio a fin, en local y con el corpus completo**: las 597 sentencias y los 290 resúmenes, descargados desde cero con el scraper del propio notebook (sección 6). Todas las salidas corresponden a esa ejecución.
 
-Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 66 comprobaciones). La fase 3 (características y recuperación) está en la sección 8 y la fase 4 (evaluación) en la sección 9. Las fases 1 y 2 se validaron en tres etapas, y de cada una salieron cambios adicionales:
+Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 67 comprobaciones). La fase 3 (características y recuperación) está en la sección 8 y la fase 4 (evaluación) en la sección 9. Las fases 1 y 2 se validaron en tres etapas, y de cada una salieron cambios adicionales:
 - sobre 10 sentencias reales (sección 4);
 - con una primera ejecución local de 199 sentencias de 2020–2026 (sección 5);
 - con el corpus completo, que incluye las sentencias de 1987–2019 con formatos más antiguos (sección 6).
@@ -316,12 +316,12 @@ Las secciones de representación y recuperación del artículo actualizado (secc
 
 ## 9. Fase 4: evaluación con consultas juzgadas (punto 4)
 
-El notebook se ejecutó completo otra vez: 50 minutos, de los cuales 26 son las ablaciones (re-calculan embeddings de tres variantes del índice). `pruebas_notebook.py` tiene ahora 66 comprobaciones (nDCG, extracción de consultas de los resúmenes, colapso de chunks a documentos).
+El notebook se ejecutó completo otra vez, ya con el conjunto C: 100 minutos, de los cuales 52 son las ablaciones (re-calculan embeddings de cuatro variantes del índice; con la GPU libre son unos 25). `pruebas_notebook.py` tiene ahora 67 comprobaciones (nDCG, extracción de consultas de los resúmenes, colapso de chunks a documentos, paso de párrafos citados a chunks).
 
 ### 9.1 Dos conjuntos de evaluación
 - **A) Resúmenes oficiales, relevancia por documento (290 consultas).** Cada resumen oficial corresponde a una sentencia. Se toma una oración al azar del resumen (semilla 42, de 15 a 45 palabras, 28,7 en promedio) como consulta, y su sentencia es el único documento relevante. Se descartan las oraciones que nombran a las víctimas o al caso y las de trámite («la Sentencia fue notificada…»), para que la consulta no se resuelva por el nombre propio. Los rankings de chunks se colapsan a documentos en orden de aparición.
 - **B) 20 consultas temáticas propias, relevancia por chunk de 0 a 2** (`evaluacion/consultas_propias.csv` y `evaluacion/qrels_consultas_propias.csv`). Ejemplos: «plazo razonable», «control de convencionalidad», «daño al proyecto de vida». Se juzgó el top 10 de los cinco sistemas (TF-IDF, BM25, denso, híbrido e híbrido diversificado): 486 pares, con 241 de relevancia 2, 195 de relevancia 1 y 50 de relevancia 0. **Los juicios los hizo Claude (un modelo de lenguaje), no un experto:** el grupo debe revisarlos, sobre todo los de relevancia 1. El CSV incluye el título, la sección y el inicio de cada chunk para revisarlos sin abrir el notebook.
-- **Cuadernillos de Jurisprudencia (relevancia por párrafo): no se hizo.** El sitio de la Corte (www.corteidh.or.cr) bloquea la descarga automática con una verificación anti-bots, que no se intentó saltar. Si el grupo descarga a mano algunos cuadernillos, sus citas (caso + párrafo por subtema) sirven como juicios de experto por párrafo.
+- **C) Cuadernillos de Jurisprudencia, relevancia por párrafo (182 consultas, juicios de experto).** Se agregó después; ver 9.5.
 
 ### 9.2 Métricas
 R@1, R@5, R@10, MRR@10 y nDCG@10 (ganancia lineal 0/1/2). En B también P@10 (fracción del top 10 con relevancia ≥ 1), el número de casos distintos en el top 10 y la fracción sin juzgar, que es 0. Los intervalos son del 95 % por bootstrap sobre las consultas (1000 remuestreos). En las ablaciones la diferencia es pareada: misma consulta, variante menos principal.
@@ -347,7 +347,9 @@ R@1, R@5, R@10, MRR@10 y nDCG@10 (ganancia lineal 0/1/2). En B también P@10 (fr
 | híbrido | **0,86** [0,81–0,91] | 0,96 | 1,00 | 7,6 |
 | híbrido diversificado | 0,81 [0,72–0,89] | 0,90 | 1,00 | 10,0 |
 
-Figura 11 (`fig11_evaluacion_metodos.png`): nDCG@10 con sus intervalos en los dos conjuntos.
+Los resultados del conjunto C están en 9.5.
+
+Figura 11 (`fig11_evaluacion_metodos.png`): nDCG@10 con sus intervalos en los tres conjuntos (en C, por párrafo).
 
 **Cómo leerlo:** los dos conjuntos miden cosas distintas y ordenan los métodos al revés.
 - En A la consulta describe hechos concretos de un caso (lugares, instituciones, fechas) con vocabulario que la sentencia repite, así que gana lo léxico; es una búsqueda de un documento conocido.
@@ -371,13 +373,83 @@ La configuración principal usa chunks de 250 palabras, cabecera, 512 tokens y n
 - **Cabecera:** en A, quitarla mejora el híbrido en 0,03 (significativo por poco). Una explicación plausible: las consultas de A evitan a propósito el nombre del caso, que es lo que más aporta la cabecera, así que A no puede premiarla. **No se cambia todavía:** falta medirla en B, donde el título y la sección sí pueden ayudar, y con los juicios revisados por el grupo.
 - **Chunks de 150 palabras:** +0,023 en el híbrido, en el límite (el intervalo toca el 0), con 1,8 veces más chunks. No es concluyente.
 
+Estas dos decisiones pendientes se resuelven con el conjunto C (9.5).
+
+### 9.5 Conjunto C: Cuadernillos de Jurisprudencia (juicios de experto por párrafo)
+Los Cuadernillos de Jurisprudencia de la Corte ordenan por temas y subtemas los párrafos de sus sentencias que la propia Corte considera representativos. El grupo descargó cinco a mano (en `cuadernillos/`, fuera de git):
+- Derechos humanos de las mujeres;
+- Desaparición forzada;
+- Personas privadas de libertad;
+- Libertad de pensamiento y de expresión;
+- Pueblos indígenas y tribales.
+
+**Extracción** (`evaluacion/extraer_cuadernillos.py`, con PyMuPDF):
+- **Consultas.** Cada subtema es una consulta, con la forma «Tema: Subtema». Ejemplo: «Desaparición forzada: Obligación de investigar».
+- **Grado 2.** Los párrafos transcritos bajo cada cita («Caso … Sentencia de … Serie C No. N») tienen relevancia 2.
+- **Grado 1.** Las referencias «En similar sentido: Caso …, párr. M» tienen relevancia 1.
+- **Lo que se descarta.** Superíndices y notas (por tamaño de fuente), encabezados de página, Opiniones Consultivas y Resoluciones (no están en el corpus).
+- **Emparejamiento.** El corpus no tiene el número de Serie C, así que cada cita se empareja con su sentencia por la fecha y la similitud del título del caso (Jaccard ≥ 0,34). Si en esa fecha hay una sola sentencia candidata, se acepta directamente: así entran los casos con iniciales.
+
+**Resultado** (`evaluacion/consultas_cuadernillos.csv`, `evaluacion/qrels_cuadernillos.csv`):
+- 2.642 citas, el 97,4 % emparejadas con una sentencia del corpus;
+- 182 consultas (Mujeres 35, Desaparición forzada 38, Expresión 27, Personas privadas de libertad 32, Pueblos indígenas 49);
+- 2.495 juicios (2.237 de grado 2 y 258 de grado 1) sobre 191 sentencias;
+- el 99,3 % de los párrafos citados cae dentro de un chunk del cuerpo, y toda consulta tiene al menos un chunk relevante (mediana 7).
+
+Un chunk hereda el grado máximo de los párrafos citados que contiene (`ganancia_cuadernillos`). Hay dos lecturas:
+- **C párrafo:** el ranking de chunks contra esos juicios.
+- **C documento:** colapsado a sentencias, como en A.
+
+**Los juicios son incompletos.** Un cuadernillo cita algunos párrafos representativos, no todos los relevantes, así que muchos chunks pertinentes cuentan como no relevantes. Las cifras absolutas son cotas inferiores y solo sirven para comparar métodos entre sí. A cambio, son juicios de la Corte y no de un modelo de lenguaje, y la cobertura temática es mucho mayor que en B.
+
+**Resultados:**
+
+| método | C párrafo: R@10 | C párrafo: nDCG@10 | C documento: R@10 | C documento: nDCG@10 |
+|---|---|---|---|---|
+| TF-IDF | 0,23 | 0,061 [0,04–0,08] | 0,67 | 0,30 [0,26–0,34] |
+| BM25 | 0,31 | 0,079 [0,06–0,10] | 0,67 | 0,32 [0,28–0,37] |
+| denso | **0,44** | **0,119** [0,09–0,15] | **0,80** | **0,37** [0,32–0,41] |
+| híbrido | 0,36 | 0,113 [0,09–0,14] | 0,72 | 0,36 [0,31–0,40] |
+| híbrido diversificado | 0,32 | 0,088 [0,06–0,11] | — | — |
+
+- **C confirma a B con juicios independientes:** en consultas temáticas, el denso y el híbrido superan a TF-IDF y BM25, y no se distinguen entre sí. Con A el orden es el contrario, por las razones de 9.3. El híbrido sigue siendo la opción más robusta entre los tres conjuntos.
+- **Diversificar** cuesta 0,025 de nDCG@10 por párrafo, un efecto parecido al de B. Es esperable: los cuadernillos citan varios párrafos de una misma sentencia, que la diversificación deja fuera.
+
+**Ablaciones en C** (Δ nDCG@10 pareado contra la configuración principal; A se repite para comparar):
+
+| variante | método | A | C párrafo | C documento |
+|---|---|---|---|---|
+| sin cabecera | denso | −0,009 | **−0,027 [−0,044, −0,011]** | **−0,054 [−0,083, −0,024]** |
+| sin cabecera | híbrido | **+0,030** | −0,004 | −0,007 |
+| 256 tokens | denso | **−0,035** | −0,007 | +0,002 |
+| 256 tokens | híbrido | −0,020 | **+0,014 [+0,005, +0,024]** | **+0,021 [+0,003, +0,040]** |
+| con notas al pie | BM25 | +0,001 | **−0,006** | **+0,018** |
+| con notas al pie | denso | +0,005 | **−0,008** | **−0,020** |
+| con notas al pie | híbrido | −0,000 | **−0,006** | +0,000 |
+| 150 palabras | BM25 | −0,001 | (−0,026) | +0,006 |
+| 150 palabras | denso | +0,010 | (−0,024) | +0,008 |
+| 150 palabras | híbrido | +0,023 | (−0,017) | +0,007 |
+
+En negrita, las diferencias cuyo intervalo no incluye el 0.
+
+La columna «C párrafo» de 150 palabras va entre paréntesis porque no es comparable: con chunks más cortos cambia el número de chunks relevantes y el orden ideal. La comparación justa para el tamaño de chunk es «C documento».
+
+**Decisiones:**
+- **Cabecera de contexto: se mantiene.** En C quitarla hace perder al denso 0,027 por párrafo y 0,054 por documento, ambos significativos. La pequeña ganancia del híbrido en A se explica porque esas consultas evitan el nombre del caso. En el híbrido, C no muestra diferencia.
+- **Chunks de 250 palabras: se mantienen.** Con 150 palabras nada mejora de forma significativa en A ni en C documento, y el índice crece 1,8 veces.
+- **512 tokens: se mantiene, con una salvedad.** El denso pierde 0,035 con 256 tokens en A. En C, en cambio, el híbrido gana 0,014–0,021 con 256. Las señales se contradicen y son pequeñas, así que no se cambia. Si se quisiera afinar, la siguiente prueba es un híbrido con ponderación distinta entre BM25 y denso, no la ventana.
+- **Notas al pie: siguen fuera del índice.** Sus efectos son pequeños y de signo mixto.
+
 ### Artefactos guardados
 `procesado/evaluacion/` (regenerable, fuera de git):
-- `tabla_metodos_resumenes.csv`, `tabla_metodos_consultas_propias.csv` y `tabla_ablaciones.csv`: las tablas de arriba;
-- `evaluacion_por_consulta.csv`: las métricas por consulta, método y variante;
+- `tabla_metodos_resumenes.csv`, `tabla_metodos_consultas_propias.csv`, `tabla_metodos_cuadernillos.csv` y `tabla_ablaciones.csv`: las tablas de arriba;
+- `evaluacion_por_consulta.csv`: las métricas por consulta, conjunto, método y variante;
 - `consultas_resumenes.csv`: las 290 consultas del conjunto A.
 
-`evaluacion/` (en git): las consultas propias y sus juicios.
+`evaluacion/` (en git):
+- las consultas propias y sus juicios;
+- las consultas y juicios de los cuadernillos;
+- `extraer_cuadernillos.py`.
 
 ### Afecta al artículo
 La sección de evaluación del artículo debe reemplazar la prueba de humo por estas tablas y la figura 11. Queda para la fase 5.
@@ -390,11 +462,12 @@ La sección de evaluación del artículo debe reemplazar la prueba de humo por e
 1. **Punto 1:** reconstruir el corpus desde la celda de construcción. No vuelve a descargar los PDF, pero tarda más porque lee el tamaño de fuente de cada renglón.
 2. **Puntos 2 y 3:** ejecutarlos en la misma sesión. El punto 3 usa la normalización del punto 2 y lo avisa con un `assert` si falta.
 3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.
-4. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `Articulo_actualizado.docx` (sección 7).
+4. **Conjunto C:** solo hace falta si se añaden cuadernillos. Poner los PDF en `cuadernillos/` y ejecutar `python evaluacion/extraer_cuadernillos.py cuadernillos procesado/corpus_limpio.parquet`, que regenera los dos CSV de `evaluacion/`. Después volver a ejecutar el punto 4.
+5. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `Articulo_actualizado.docx` (sección 7).
 
 ## Pendiente (fases 5 y 6)
-- Revisar los juicios de `evaluacion/qrels_consultas_propias.csv` (hechos por un modelo de lenguaje) y, si se descargan a mano, añadir juicios por párrafo de los Cuadernillos de Jurisprudencia.
-- Decidir la cabecera de contexto y el tamaño de chunk midiéndolos también en las consultas propias (sección 9.4).
+- Revisar los juicios de `evaluacion/qrels_consultas_propias.csv` (hechos por un modelo de lenguaje).
+- Opcional: más cuadernillos para el conjunto C (basta ponerlos en `cuadernillos/` y volver a correr el extractor, sección 9.5).
 - Opcional de la fase 3: temas (BERTopic o LSA) y comparar e5 con bge-m3.
 - Artículo: llevar las cifras de las secciones 8 y 9 y las figuras 10 y 11.
 - Corregir la detección de secciones en las 43 sentencias que fallan (sobre todo antiguas) y completar los metadatos desde el buscador.
