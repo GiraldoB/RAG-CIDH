@@ -1,11 +1,11 @@
-# Cambios al notebook: fases 1 a 4 de la revisión
+# Cambios al notebook: fases 1 a 5 de la revisión
 
 Versión entregada: commit `9dd6cc8` (rama `main`).
 Versión corregida: rama `correcciones-fase-1-2` (commit `2c4c516` y siguientes).
 
 El notebook se ejecutó **completo, de principio a fin, en local y con el corpus completo**: las 597 sentencias y los 290 resúmenes, descargados desde cero con el scraper del propio notebook (sección 6). Todas las salidas corresponden a esa ejecución.
 
-Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 67 comprobaciones). La fase 3 (características y recuperación) está en la sección 8 y la fase 4 (evaluación) en la sección 9. Las fases 1 y 2 se validaron en tres etapas, y de cada una salieron cambios adicionales:
+Las funciones nuevas también se probaron con datos sintéticos (`pruebas_notebook.py`, 67 comprobaciones). La fase 3 (características y recuperación) está en la sección 8, la fase 4 (evaluación) en la sección 9 y la fase 5 (análisis exploratorio con contenido) en la sección 10. Las fases 1 y 2 se validaron en tres etapas, y de cada una salieron cambios adicionales:
 - sobre 10 sentencias reales (sección 4);
 - con una primera ejecución local de 199 sentencias de 2020–2026 (sección 5);
 - con el corpus completo, que incluye las sentencias de 1987–2019 con formatos más antiguos (sección 6).
@@ -452,7 +452,71 @@ La columna «C párrafo» de 150 palabras va entre paréntesis porque no es comp
 - `extraer_cuadernillos.py`.
 
 ### Afecta al artículo
-La sección de evaluación del artículo debe reemplazar la prueba de humo por estas tablas y la figura 11. Queda para la fase 5.
+La sección de evaluación del artículo debe reemplazar la prueba de humo por estas tablas y la figura 11. Queda para la fase 6.
+
+---
+
+## 10. Fase 5: análisis exploratorio con contenido (punto 2 y punto 3)
+
+El análisis exploratorio describía el texto (tamaños, términos frecuentes, nubes), pero casi nada del contenido jurídico. Se agregó lo que interesa a quien consulta la jurisprudencia y lo que valida las decisiones del pipeline. Las figuras se guardan en `procesado/figuras/`. Los números de figura siguen siendo los de los archivos y se reordenan en el artículo (fase 6).
+
+### 10.1 Sentencias en el tiempo y por Estado (figura 2, reemplaza «documentos por año»)
+Tres paneles: sentencias por año apiladas por tipo, longitud de las sentencias de fondo por quinquenio y un mapa de calor Estado × década.
+- **Volumen.** Desde 2018 hay más de 20 sentencias por año. De las 595 con año, 394 son de fondo y 109 de interpretación. 2026 está incompleto y se marca en la figura.
+- **Estados.** Los cinco con más sentencias reúnen el 56 %: Perú 20 %, Guatemala 10 %, Ecuador 9 %, Colombia 9 % y Argentina 8 %.
+- **Longitud.** La mediana de las sentencias de fondo pasa de 13.100 palabras en los noventa a 42.100 en los 2000 y 59.300 en los 2010. En los 2020 es de 46.900.
+
+Los tipos poco frecuentes (competencia y sin tipo) se agrupan en «otra», para no pasar de cinco colores.
+
+### 10.2 Zipf con exponente ajustado y Heaps (figura 6, reemplaza «Zipf y Jaccard»)
+- **Zipf.** α = 1,08, ajustado en los rangos 10 a 10.000 con puntos espaciados en escala logarítmica, para que cada década de rangos pese lo mismo. Con todos los puntos daba 1,24, porque los rangos altos son muchos más. La curva se dobla en la cola de hápax.
+- **Heaps.** V = 15,2·n^0,53 sobre 22,7 millones de tokens y 118.638 palabras distintas, leyendo las sentencias en orden cronológico.
+
+Las dos leyes se cumplen, así que el texto extraído se comporta como lenguaje natural. El vocabulario no deja de crecer con cada sentencia nueva (nombres de víctimas, lugares, instituciones).
+
+Se quitó el mapa de Jaccard sobre 12 sentencias al azar, que no decía nada del corpus. También se quitó la nube de palabras del texto crudo: queda solo la de lemas (figura 8).
+
+### 10.3 Artículos de la Convención declarados violados (figura 10, ampliada)
+La figura ya tenía la frecuencia de cada artículo y el mapa por Estado (sección 8). Se añadió un panel con la evolución por quinquenio, solo para quinquenios con 10 o más sentencias de fondo:
+
+| artículo | 1995–99 | 2000–04 | 2005–09 | 2010–14 | 2015–19 | 2020–24 | 2025–26 |
+|---|---|---|---|---|---|---|---|
+| 8 · garantías judiciales | 56 % | 75 % | 81 % | 89 % | 92 % | 89 % | 96 % |
+| 5 · integridad personal | 56 % | 61 % | 55 % | 68 % | 64 % | 61 % | 88 % |
+| 4 · vida | 44 % | 46 % | 43 % | 46 % | 40 % | 42 % | 46 % |
+| 13 · libertad de expresión | 0 % | 11 % | 16 % | 11 % | 12 % | 30 % | 46 % |
+| 26 · DESCA | 0 % | 0 % | 2 % | 0 % | 10 % | 24 % | 38 % |
+
+- **Lo estable.** Los artículos 8 y 25 aparecen en tres de cada cuatro sentencias de fondo o más; el 4 se mantiene alrededor del 44 %.
+- **Lo que cambia.** El artículo 26 (derechos económicos, sociales, culturales y ambientales) casi no aparecía antes de 2015 y hoy está en más de un tercio de las sentencias. La libertad de expresión también crece.
+- **Para el RAG.** Los temas más recientes tienen menos jurisprudencia acumulada, y conviene revisarlos al evaluar la cobertura.
+- **Con cautela.** 2025–26 tiene solo 24 sentencias de fondo.
+
+### 10.4 Términos característicos de cada sección (figura 12, nueva)
+Para seis secciones canónicas se calcula el peso TF-IDF medio de cada término en los chunks de la sección, menos su peso medio en el resto. Restar el resto evita que ganen los términos comunes a todas («víctima», «derecho»). Una expresión no se repite como unigrama y bigrama.
+
+| sección | términos más característicos |
+|---|---|
+| Hechos | juzgado, sala, policía, penal, fiscalía y meses del año |
+| Prueba | prueba, documento, declaración, admitir, probatorio, testigo |
+| Fondo | derecho, libertad, convención, autoridad, obligación |
+| Reparaciones | daño, gasto, dólares, reparación, inmaterial, indemnización |
+| Excepciones preliminares | excepción preliminar, recurso interno, agotamiento, admisibilidad |
+| Puntos resolutivos | unanimidad, «decide», «párrafo presente», fórmulas fijas |
+
+Cada sección tiene un vocabulario propio. Eso valida la detección de secciones del punto 2 y el filtro por sección de `buscar()`.
+
+### 10.5 UMAP de los embeddings (figura 13, nueva)
+Antes era un diagrama de dispersión sin colores que no se guardaba. Ahora tiene dos paneles:
+- **Chunks por sección.** Muestra de 2.000 chunks; se colorean hechos, fondo y reparaciones, y el resto va en gris. Las reparaciones forman una región propia. Hechos y fondo se mezclan, porque el fondo vuelve a narrar los hechos.
+- **Sentencias.** Cada sentencia es el embedding medio de sus chunks, coloreada por tipo, y una línea une las del mismo caso.
+
+**Validación cuantitativa:** de las 290 sentencias que tienen otra del mismo caso, en el 95 % la sentencia más parecida (coseno) es de su mismo caso. Al azar sería el 0,2 %.
+
+**Salvedad:** la cabecera de cada chunk lleva el título del caso, que contribuye a ese parecido. El 95 % mide sobre todo que los embeddings agrupan bien las sentencias de un caso. Que capturen el contenido jurídico lo muestran los conjuntos B y C (sección 9).
+
+### Afecta al artículo
+Las figuras 2, 6, 10, 12 y 13 y estas cifras van a la sección de análisis exploratorio del artículo. Queda para la fase 6, con la numeración de figuras definitiva.
 
 ---
 
@@ -465,10 +529,10 @@ La sección de evaluación del artículo debe reemplazar la prueba de humo por e
 4. **Conjunto C:** solo hace falta si se añaden cuadernillos. Poner los PDF en `cuadernillos/` y ejecutar `python evaluacion/extraer_cuadernillos.py cuadernillos procesado/corpus_limpio.parquet`, que regenera los dos CSV de `evaluacion/`. Después volver a ejecutar el punto 4.
 5. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `Articulo_actualizado.docx` (sección 7).
 
-## Pendiente (fases 5 y 6)
+## Pendiente (fase 6)
 - Revisar los juicios de `evaluacion/qrels_consultas_propias.csv` (hechos por un modelo de lenguaje).
 - Opcional: más cuadernillos para el conjunto C (basta ponerlos en `cuadernillos/` y volver a correr el extractor, sección 9.5).
 - Opcional de la fase 3: temas (BERTopic o LSA) y comparar e5 con bge-m3.
-- Artículo: llevar las cifras de las secciones 8 y 9 y las figuras 10 y 11.
+- Artículo: llevar las cifras de las secciones 8, 9 y 10 y las figuras nuevas, con la numeración definitiva.
 - Corregir la detección de secciones en las 43 sentencias que fallan (sobre todo antiguas) y completar los metadatos desde el buscador.
 - Artículo: revisar la versión actualizada y llevarla al Google Doc (sección 7).
