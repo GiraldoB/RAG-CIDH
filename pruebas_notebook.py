@@ -3,7 +3,7 @@
 No necesita los PDF ni Drive: extrae del notebook las funciones y constantes y las ejecuta.
 Requiere pymupdf, spacy, pandas y es_core_news_sm (ya instalados en el notebook de Colab).
 
-Uso:  python pruebas_notebook.py "proyecto_(2).ipynb"      (en Colab: !python pruebas_notebook.py ...)
+Uso:  python pruebas_notebook.py proyecto_corregido.ipynb      (en Colab: !python pruebas_notebook.py ...)
 """
 import ast
 import json
