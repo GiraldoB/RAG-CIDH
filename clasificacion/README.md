@@ -40,7 +40,7 @@ for k, entrena, prueba in iterar_particiones(df):
 - **Datos:** 305 sentencias, una por caso. Quedan fuera 67 sin sección Hechos detectada y 1 con hechos muy cortos.
 - **Particiones:** 5, con estratificación iterativa multietiqueta. Cada artículo tiene al menos 7 positivos en cada partición de prueba.
 - **Prueba temporal:** entrenar con 147 sentencias hasta 2018 y evaluar con 158 de 2019 en adelante (`particion_temporal`).
-- **Cuidado:** el 79 % de los textos de hechos cita «artículo N». `tapar_citas` lo reemplaza; reporten resultados con y sin tapar.
+- **Cuidado:** el 79 % de los textos de hechos cita «artículo N», aunque muchas citas son de leyes nacionales. `tapar_citas` las reemplaza; reporten resultados con y sin tapar. Solo tiene efecto sobre `texto`: en `lemas` la normalización de la Entrega 1 ya quitó los números.
 
 Línea base de referencia, con regresión logística sobre TF-IDF de lemas, citas tapadas, umbral 0,5 y sin ajuste de hiperparámetros. Las cifras son medias de las 5 particiones:
 
