@@ -227,7 +227,7 @@ La celda de texto 25 (estadísticos de longitud) se actualizó con las cifras de
 
 ## 7. Artículo actualizado
 
-`Articulo_actualizado.docx`, más su vista `Articulo_actualizado.pdf`, es el artículo con las cifras de la ejecución completa (sección 6). Además, se reescribieron las afirmaciones que las correcciones dejaron obsoletas. `Articulo.pdf` queda como la versión entregada. El .docx se generó desde cero, porque solo existía el PDF exportado de Google Docs, y mantiene la estructura, la portada y el formato (Times New Roman 12, A4). Se puede subir a Google Docs para seguir editándolo.
+`articulo/Articulo_actualizado.docx`, más su vista `articulo/Articulo_actualizado.pdf`, es el artículo con las cifras de la ejecución completa (sección 6). Además, se reescribieron las afirmaciones que las correcciones dejaron obsoletas. `articulo/Articulo.pdf` queda como la versión entregada. El .docx se generó desde cero, porque solo existía el PDF exportado de Google Docs, y mantiene la estructura, la portada y el formato (Times New Roman 12, A4). Se puede subir a Google Docs para seguir editándolo.
 
 ### Qué cambió
 - **Cifras:** todas se tomaron de la ejecución completa: corpus, descriptivos (Tabla 2), diagnóstico, secciones, párrafos, efecto del preprocesamiento (Tabla 3), chunks, TF-IDF, consultas y prueba de humo. El artículo entregado mezclaba cifras de dos ejecuciones: 596 sentencias en el resumen, pero «1 de las 199 sentencias» en la sección 3.4 y «200 casos posteriores a 2020» en las limitaciones.
@@ -527,7 +527,7 @@ Las figuras 2, 6, 10, 12 y 13 y estas cifras van a la sección de análisis expl
 2. **Puntos 2 y 3:** ejecutarlos en la misma sesión. El punto 3 usa la normalización del punto 2 y lo avisa con un `assert` si falta.
 3. **Verificaciones:** revisar las salidas nuevas, sobre todo cuántas sentencias tienen puntos resolutivos detectados y el porcentaje de palabras en notas.
 4. **Conjunto C:** solo hace falta si se añaden cuadernillos. Poner los PDF en `cuadernillos/` y ejecutar `python evaluacion/extraer_cuadernillos.py cuadernillos procesado/corpus_limpio.parquet`, que regenera los dos CSV de `evaluacion/`. Después volver a ejecutar el punto 4.
-5. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `Articulo_actualizado.docx` (sección 7).
+5. **Artículo:** si se vuelve a ejecutar con otros datos, revisar las cifras de `articulo/Articulo_actualizado.docx` (sección 7).
 
 ## Pendiente (fase 6)
 - Revisar los juicios de `evaluacion/qrels_consultas_propias.csv` (hechos por un modelo de lenguaje).
