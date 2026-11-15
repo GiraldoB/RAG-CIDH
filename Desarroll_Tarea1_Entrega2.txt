@@ -1,23 +1,124 @@
-Desarrollo Tarea 1 Entrega 2
+# Tarea 1 · Artículos violados desde los hechos
+Entrega 2 · Corte IDH · Rama `t1-articulos` · 14/11/2026
 
-Por que los articulos mas comunmente violados son el 8 y 25??
+## Datos y decisiones
+
+- 305 sentencias de fondo; 15 artículos; 4,84 artículos por sentencia.
+- Etiquetas: artículos declarados violados con al menos 25 sentencias positivas.
+- Las etiquetas salen de los puntos resolutivos; el texto de entrada del modelo son los Hechos.
+- Fuente: `cargar_articulos()` → `procesado/clasificacion/articulos.parquet`; notebook `t1_articulos.ipynb`.
+
+## Prevalencia
+
+| Artículo | Derecho | % | n |
+|---:|---|---:|---:|
+| 8 | Garantías judiciales | 93,1 | 284 |
+| 25 | Protección judicial | 79,3 | 242 |
+| 5 | Integridad personal | 67,5 | 206 |
+| 4 | Vida | 44,6 | 136 |
+| 7 | Libertad personal | 42,0 | 128 |
+| 13 | Libertad de expresión | 20,7 | 63 |
+| 19 | Derechos del niño | 20,3 | 62 |
+| 11 | Honra y dignidad | 18,7 | 57 |
+| 3 | Personalidad jurídica | 16,4 | 50 |
+| 26 | DESCA | 15,1 | 46 |
+| 17 | Protección a la familia | 15,1 | 46 |
+| 24 | Igualdad ante la ley | 13,8 | 42 |
+| 22 | Circulación y residencia | 13,4 | 41 |
+| 21 | Propiedad privada | 12,8 | 39 |
+| 23 | Derechos políticos | 11,5 | 35 |
+
+- El 8, el 25 y el 5 son los más frecuentes. El 23 es el menos frecuente (35), pero el 21 está cerca (39).
+
+## Interpretación
+
+### ¿Por qué el 8 y el 25?
+
+- Para que la Corte conozca un caso deben agotarse los recursos internos (art. 46.1.a CADH), salvo las excepciones del art. 46.2.
+- Con frecuencia el caso llega porque la respuesta interna fue insuficiente: no se investigó, no se juzgó o no se reparó a tiempo.
+- Por eso, buena parte de las violaciones sustantivas no resueltas internamente arrastra una falla de **debido proceso (art. 8)** y de **protección judicial (art. 25)**.
+- Es un **efecto de arrastre** o denominador procesal común. No es automático: no toda sentencia viola el 8 y el 25.
+
+### ¿Qué pares aparecen juntos?
+
+- La co-ocurrencia cruda (`Y.T @ Y`) está dominada por el 8 y el 25 porque están en casi todas las sentencias. Phi matiza ese efecto: el par 8–25 tiene φ = 0,25.
+- Las asociaciones más altas son:
+
+| Par | φ | Lectura |
+|---|---:|---|
+| 17–19 | 0,61 | Familia y niñez |
+| 4–5 | 0,55 | Vida e integridad personal |
+| 17–22 | 0,48 | Familia y circulación/residencia |
+| 3–7 | 0,41 | Personalidad jurídica y libertad personal |
+| 19–22 | 0,40 | Niñez y circulación/residencia |
+
+- **17–19–22:** consistente con el desplazamiento forzado y la movilidad humana afectando el núcleo familiar y la niñez.
+- **4–5:** ejecuciones extrajudiciales, tortura y uso excesivo de la fuerza; la privación de la vida suele implicar afectación a la integridad.
+- **3–7:** desaparición forzada y detención arbitraria; se niega la personalidad jurídica y la libertad.
+- Son interpretaciones sobre patrones agregados; para sostenerlas hay que revisar casos concretos. Phi es descriptivo: no prueba causalidad y su valor máximo depende de la prevalencia.
+
+### El 23, el menos frecuente
+
+- Los casos de derechos políticos son un subconjunto específico (elecciones, participación) y no acompañan las violaciones típicas de vida, libertad e integridad.
+- Es una hipótesis: conviene revisar los casos del corpus para confirmarla.
+
+-----------------------------------------------------------------
+
+Para usarlo de ahora en adelante
+Úsalo como bitácora: deja los tres bloques estables arriba y ve agregando descubrimientos abajo, con fecha. Algo así:
+## Descubrimientos
+
+### 15/11 · Título corto
+- **Dato:** lo que salió en el notebook, con la celda o figura.
+- **Interpretación:** lo que crees que significa.
+- **Siguiente:** qué revisarías después.
 
 
-Para que un caso llegue a la Corte Interamericana de Derechos Humanos (Corte IDH), la víctima debe haber intentado primero resolver el problema ante los jueces de su propio país (Art. 46 CADH).
-• El efecto arrastre: Cuando un Estado viola un derecho principal (como la vida, la libertad o la integridad personal) y el caso llega al sistema interamericano, significa que el sistema judicial interno falló en investigar, juzgar o reparar ese abuso a tiempo.
-• Por eso, casi cualquier violación de derechos humanos que no es resuelta internamente se convierte automáticamente en una violación adicional al debido proceso (Art. 8) y a la protección judicial (Art. 25).
-
-La menos comun es el articulo 23 ( se refiere a la obligación que tienen los Estados de reconocer que todo ser humano es una "persona" ante la ley, con la capacidad de tener derechos y asumir obligaciones desde que nace hasta que muere.)
 
 
 
-Cuales aparecen juntos mas seguido?
-viendo la grafica se ve que el 8 y el 25 son los que mas aparecen en compañia con otros, esto es porque ellos estan en casi todos los casos,
-
-En la matriz phi, las asociaciones más fuertes son 17–19 (0,61), 4–5 (0,55), 17–22 (0,48), 3–7 (0,41) y 19–22 (0,40). Es más informativa que la co-ocurrencia cruda: 8 y 25 co-ocurren muchísimo solo porque ambos son muy frecuentes, pero su phi es apenas 0,25.
-
-Tiene sentido juridico?
-Los pares con valor mas alto son violaciones que por naturaleza factice y juridica, casi siempre ocurre juntos
 
 
-El análisis mediante el coeficiente \(\phi \) ofrece una lectura jurídicamente más precisa que la co-ocurrencia simple, ya que controla el sesgo generado por las violaciones de carácter transversal. Mientras que las Garantías Judiciales (art. 8) y la Protección Judicial (art. 25) exhiben una alta frecuencia conjunta debido a que la impunidad procesal es un denominador común en casi todos los casos contenciosos, su asociación real es moderada (\(\phi = 0,25\)). En contraste, los valores más altos de \(\phi \) logran aislar patrones de vulneración estructural y pluriofensiva propios de la jurisprudencia interamericana. Por un lado, la fuerte correlación entre los artículos 17, 19 y 22 (\(\phi \) entre \(0,40\) y \(0,61\)) refleja el impacto diferenciado del desplazamiento forzado y la movilidad humana sobre el núcleo familiar y la niñez. Por otro, las asociaciones entre los artículos 4 y 5 (\(\phi = 0,55\)) y entre los artículos 3 y 7 (\(\phi = 0,41\)) capturan la dogmática de las graves violaciones a los derechos humanos —como las ejecuciones extrajudiciales y la desaparición forzada—, donde la privación arbitraria de la libertad o de la vida conlleva intrínsecamente la afectación a la integridad personal y la supresión de la personalidad jurídica de la víctima.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
