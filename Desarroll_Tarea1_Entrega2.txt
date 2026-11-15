@@ -1,0 +1,23 @@
+Desarrollo Tarea 1 Entrega 2
+
+Por que los articulos mas comunmente violados son el 8 y 25??
+
+
+Para que un caso llegue a la Corte Interamericana de Derechos Humanos (Corte IDH), la víctima debe haber intentado primero resolver el problema ante los jueces de su propio país (Art. 46 CADH).
+• El efecto arrastre: Cuando un Estado viola un derecho principal (como la vida, la libertad o la integridad personal) y el caso llega al sistema interamericano, significa que el sistema judicial interno falló en investigar, juzgar o reparar ese abuso a tiempo.
+• Por eso, casi cualquier violación de derechos humanos que no es resuelta internamente se convierte automáticamente en una violación adicional al debido proceso (Art. 8) y a la protección judicial (Art. 25).
+
+La menos comun es el articulo 23 ( se refiere a la obligación que tienen los Estados de reconocer que todo ser humano es una "persona" ante la ley, con la capacidad de tener derechos y asumir obligaciones desde que nace hasta que muere.)
+
+
+
+Cuales aparecen juntos mas seguido?
+viendo la grafica se ve que el 8 y el 25 son los que mas aparecen en compañia con otros, esto es porque ellos estan en casi todos los casos,
+
+En la matriz phi, las asociaciones más fuertes son 17–19 (0,61), 4–5 (0,55), 17–22 (0,48), 3–7 (0,41) y 19–22 (0,40). Es más informativa que la co-ocurrencia cruda: 8 y 25 co-ocurren muchísimo solo porque ambos son muy frecuentes, pero su phi es apenas 0,25.
+
+Tiene sentido juridico?
+Los pares con valor mas alto son violaciones que por naturaleza factice y juridica, casi siempre ocurre juntos
+
+
+El análisis mediante el coeficiente \(\phi \) ofrece una lectura jurídicamente más precisa que la co-ocurrencia simple, ya que controla el sesgo generado por las violaciones de carácter transversal. Mientras que las Garantías Judiciales (art. 8) y la Protección Judicial (art. 25) exhiben una alta frecuencia conjunta debido a que la impunidad procesal es un denominador común en casi todos los casos contenciosos, su asociación real es moderada (\(\phi = 0,25\)). En contraste, los valores más altos de \(\phi \) logran aislar patrones de vulneración estructural y pluriofensiva propios de la jurisprudencia interamericana. Por un lado, la fuerte correlación entre los artículos 17, 19 y 22 (\(\phi \) entre \(0,40\) y \(0,61\)) refleja el impacto diferenciado del desplazamiento forzado y la movilidad humana sobre el núcleo familiar y la niñez. Por otro, las asociaciones entre los artículos 4 y 5 (\(\phi = 0,55\)) y entre los artículos 3 y 7 (\(\phi = 0,41\)) capturan la dogmática de las graves violaciones a los derechos humanos —como las ejecuciones extrajudiciales y la desaparición forzada—, donde la privación arbitraria de la libertad o de la vida conlleva intrínsecamente la afectación a la integridad personal y la supresión de la personalidad jurídica de la víctima.
