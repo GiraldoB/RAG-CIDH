@@ -10,6 +10,7 @@ Salidas:
 Uso: python clasificacion/construir_conjuntos.py
 Las particiones se regeneran solo si no existen; para rehacerlas a propósito, bórrelas antes.
 """
+import re
 import sys
 
 import numpy as np
@@ -21,19 +22,54 @@ from comun import (ANIO_CORTE, BASE_DIR, CLASES_SECCION, DIR_DATOS, MIN_PALABRAS
                    MIN_POSITIVOS, N_PARTICIONES, PARTICIONES_ARTICULOS, PARTICIONES_SECCIONES, SEMILLA)
 
 sys.stdout.reconfigure(encoding="utf-8")
+
+# ── Etiquetas: artículos de la Convención Americana que los puntos resolutivos declaran violados ──
+# Misma regla que la celda 3.2 del notebook de la Entrega 1 (columna articulos_violados de chunks.parquet), con la
+# corrección de las listas con coma antes de la «y» final («artículos 7.1, 11.2, y 26»), que perdían el último artículo.
+# Se recalculan aquí para que las etiquetas no dependan de la versión de chunks.parquet que tenga cada integrante.
+_SEP = r"\s*,\s*(?:[ye]\s+)?|\s+[ye]\s+"
+RE_VIOLA = re.compile(r"\bviol(?:[óo]|ad[oa]s?|aci[óo]n)\b|\bincumpli(?:[óo]|miento)\b", re.I)
+RE_NO = re.compile(r"\bno\b(?:\s+\w+){0,4}\s*$", re.I)
+RE_LISTA_ART = re.compile(rf"art[íi]culos?\s+(\d+(?:\.\d+)*(?:(?:{_SEP})\d+(?:\.\d+)*)*)", re.I)
+RE_CONVENCION = re.compile(
+    r"(?P<cadh>convenci[óo]n\s+americana|pacto\s+de\s+san\s+jos[ée]|(?:mism[oa]|dich[oa])\s+(?:instrumento|convenci[óo]n|tratado)"
+    r"|\b(?:la|esta)\s+convenci[óo]n\b(?!\s+(?:interamericana|de|sobre|para)))"
+    r"|(?P<otro>convenci[óo]n\s+interamericana|bel[ée]m|protocolo|carta\s+democr|convenci[óo]n\s+(?:de|sobre|para))", re.I)
+
+
+def articulos_violados(textos):
+    """Artículos de la Convención Americana (sin 1 y 2) en los puntos resolutivos que declaran una violación."""
+    arts = set()
+    for t in textos:
+        v = RE_VIOLA.search(t)
+        if not v or RE_NO.search(t[:v.start()]):          # "El Estado no es responsable por la violación..."
+            continue
+        for m in RE_LISTA_ART.finditer(t, v.start()):
+            conv = RE_CONVENCION.search(t, m.end())       # el primer tratado nombrado después de la lista
+            if conv and conv.group("cadh"):
+                arts.update(int(n.split(".")[0]) for n in re.split(_SEP, m.group(1)))
+    return sorted(a for a in arts if 3 <= a <= 82)
+
+
+assert articulos_violados(["El Estado es responsable por la violación de los derechos contenidos en los artículos "
+                           "7.1, 11.2, y 26 de la Convención Americana"]) == [7, 11, 26]
+assert articulos_violados(["El Estado no es responsable por la violación del artículo 13 de la Convención Americana"]) == []
+
 DIR_DATOS.mkdir(parents=True, exist_ok=True)
 chunks = pd.read_parquet(BASE_DIR / "procesado/caracteristicas/chunks.parquet")
 temporal = lambda anio: np.select([anio.le(ANIO_CORTE), anio.gt(ANIO_CORTE)], ["entrenamiento", "prueba"], "sin_anio")
-
-# ── Tarea 1: artículos violados a partir de los hechos ──
-docs = (chunks.groupby("doc_id")
-        .agg(caso_id=("caso_id", "first"), titulo=("titulo", "first"), estado=("estado", "first"),
-             anio=("anio", "first"), tipo_sentencia=("tipo_sentencia", "first"),
-             articulos=("articulos_violados", "first")))
-docs = docs[docs["tipo_sentencia"].eq("fondo") & docs["articulos"].map(len).gt(0)]
-
 parr = pd.read_parquet(BASE_DIR / "procesado/parrafos.parquet",
                        columns=["doc_id", "orden", "parte", "seccion_canonica", "es_portada", "texto", "lemas"])
+
+# ── Tarea 1: artículos violados a partir de los hechos ──
+resolutivos = (parr[parr["parte"].eq("resolutivos")].sort_values(["doc_id", "orden"])
+               .groupby("doc_id")["texto"].apply(articulos_violados))
+docs = (chunks.groupby("doc_id")
+        .agg(caso_id=("caso_id", "first"), titulo=("titulo", "first"), estado=("estado", "first"),
+             anio=("anio", "first"), tipo_sentencia=("tipo_sentencia", "first")))
+docs["articulos"] = [resolutivos.get(d, []) for d in docs.index]
+docs = docs[docs["tipo_sentencia"].eq("fondo") & docs["articulos"].map(len).gt(0)]
+
 hechos = (parr[parr["seccion_canonica"].eq("Hechos") & parr["parte"].eq("cuerpo") & ~parr["es_portada"]
                & parr["doc_id"].isin(docs.index)]
           .sort_values(["doc_id", "orden"])

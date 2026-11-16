@@ -520,6 +520,18 @@ Las figuras 2, 6, 10, 12 y 13 y estas cifras van a la sección de análisis expl
 
 ---
 
+## 11. Corrección de `articulos_violados` (encontrada en la Entrega 2)
+
+Al leer los errores del clasificador de la Tarea 1 apareció un fallo de la regex de la celda 3.2. Una lista con coma antes de la «y» final, como «artículos 7.1, 11.2, y 26 de la Convención Americana», perdía el último artículo, porque el separador aceptaba «, » o « y », pero no «, y ».
+
+**Arreglo.** El separador pasa de `\s*,\s*|\s+[ye]\s+` a `\s*,\s*(?:[ye]\s+)?|\s+[ye]\s+`, tanto en `RE_LISTA_ART` como en el `re.split`. El cambio solo toca el código fuente de la celda: las salidas del notebook y `chunks.parquet` siguen con la versión anterior hasta que se vuelva a ejecutar.
+
+**Efecto.** Cambian 11 sentencias y solo se añaden artículos, nunca se quitan. Los casos con más artículos recuperados son Aguas Acosta, Dominicanas y haitianas expulsadas, Pavez Pavez, García Rodríguez y Movilla Galarcio. En la figura 10 las frecuencias se mueven a lo sumo un par de sentencias por artículo.
+
+**Clasificación.** `clasificacion/construir_conjuntos.py` ya no lee la columna de `chunks.parquet`: recalcula las etiquetas desde los puntos resolutivos con la regla corregida. La Tarea 1 gana 10 etiquetas positivas en 10 sentencias (art. 7: 3, art. 3: 2, art. 25: 2, art. 17, 24 y 26: 1 cada uno). El conjunto de sentencias, los 15 artículos y las particiones no cambian.
+
+---
+
 ## Cómo volver a ejecutar
 
 0. **En local:** definir `CORTEIDH_BASE` con la ruta del proyecto. Si `casos/` está vacía, poner `DESCARGAR = True` en la celda de configuración para descargar los PDF con el scraper (requiere `playwright install chromium`, unos 80 minutos), y luego ejecutar todo. En Colab no hace falta cambiar nada.

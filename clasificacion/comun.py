@@ -83,9 +83,13 @@ _CITA = re.compile(
     rf"\b(art[íi]culos?|arts?\.)\s*{_NUM}(?:\s*(?:,|y|e|o|a|al)\s*{_NUM})*", re.IGNORECASE)
 
 
+_CITA_LEMA = re.compile(r"\bart_\d+(?:_\d+)*\b")      # en lemas: la Entrega 1 convirtió «artículo 8.1» en «art_8_1»
+
+
 def tapar_citas(texto):
-    """Reemplaza las citas de artículos («artículos 8.1 y 25», «art. 5») por «ARTICULO»: delatan la etiqueta."""
-    return _CITA.sub("ARTICULO", texto)
+    """Reemplaza las citas de artículos («artículos 8.1 y 25», «art. 5», y en lemas «art_8_1») por «ARTICULO»:
+    pueden delatar la etiqueta."""
+    return _CITA_LEMA.sub("ARTICULO", _CITA.sub("ARTICULO", texto))
 
 
 def tapar_estados(texto, estados):

@@ -13,6 +13,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 assert tapar_citas("violó los artículos 8.1 y 25 de la Convención") == "violó los ARTICULO de la Convención"
 assert tapar_citas("conforme al art. 5.2 y al artículo 63.1") == "conforme al ARTICULO y al ARTICULO"
 assert tapar_citas("en el párrafo 8 de la sentencia") == "en el párrafo 8 de la sentencia"
+assert tapar_citas("violar art_8_1 art_25 convención") == "violar ARTICULO ARTICULO convención"
+assert tapar_citas("depart_5 art_x") == "depart_5 art_x"
 assert tapar_estados("El Perú y la República Dominicana", ["Perú", "República Dominicana"]) == "El ESTADO y la ESTADO"
 
 # Métricas

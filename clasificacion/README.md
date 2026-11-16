@@ -36,20 +36,40 @@ for k, entrena, prueba in iterar_particiones(df):
 ## Tarea 1: artículos violados a partir de los hechos (multietiqueta)
 
 - **Entrada:** el texto de la sección Hechos de cada sentencia de fondo (`texto`, o `lemas`). Nunca el fondo ni los puntos resolutivos, que dicen la respuesta.
-- **Etiquetas:** los artículos de la Convención que la sentencia declara violados y que aparecen en al menos 25 sentencias. Son 15: 3, 4, 5, 7, 8, 11, 13, 17, 19, 21, 22, 23, 24, 25, 26.
+- **Etiquetas:** los artículos de la Convención que la sentencia declara violados y que aparecen en al menos 25 sentencias. Son 15: 3, 4, 5, 7, 8, 11, 13, 17, 19, 21, 22, 23, 24, 25, 26. `construir_conjuntos.py` las recalcula desde los puntos resolutivos con la regla de la Entrega 1 corregida (listas «7.1, 11.2, y 26»; ver `CAMBIOS.md`, sección 11).
 - **Datos:** 305 sentencias, una por caso. Quedan fuera 67 sin sección Hechos detectada y 1 con hechos muy cortos.
 - **Particiones:** 5, con estratificación iterativa multietiqueta. Cada artículo tiene al menos 7 positivos en cada partición de prueba.
 - **Prueba temporal:** entrenar con 147 sentencias hasta 2018 y evaluar con 158 de 2019 en adelante (`particion_temporal`).
-- **Cuidado:** el 79 % de los textos de hechos cita «artículo N», aunque muchas citas son de leyes nacionales. `tapar_citas` las reemplaza; reporten resultados con y sin tapar. Solo tiene efecto sobre `texto`: en `lemas` la normalización de la Entrega 1 ya quitó los números.
+- **Cuidado:** el 79 % de los textos de hechos cita «artículo N», aunque muchas citas son de leyes nacionales. `tapar_citas` las reemplaza; reporten resultados con y sin tapar. Sirve para `texto` y para `lemas`: la normalización de la Entrega 1 convirtió «artículo 8.1» en el término `art_8_1`, así que los lemas también llevan las citas (243 de las 305 sentencias tienen alguna).
 
-Línea base de referencia, con regresión logística sobre TF-IDF de lemas, citas tapadas, umbral 0,5 y sin ajuste de hiperparámetros. Las cifras son medias de las 5 particiones:
+### Resultados (notebook `t1_articulos.ipynb`)
 
-| Modelo | F1 micro | F1 macro | AP macro |
+Medias de las 5 particiones externas, con validación anidada. Las cifras salen de las tablas `procesado/clasificacion/resultados/t1_*.csv`.
+
+| Modelo | F1 macro | AP macro | F1 micro |
 |---|---|---|---|
-| Proporción de cada artículo (sin texto) | 0,61 | 0,18 | 0,32 |
-| TF-IDF + regresión logística | 0,76 | 0,57 | 0,68 |
+| Proporción de cada artículo (sin texto) | 0,18 | 0,33 | 0,61 |
+| TF-IDF + regresión logística, umbral 0,5, sin ajustar | 0,58 | 0,68 | 0,76 |
+| **TF-IDF + regresión logística, final** | **0,62** | 0,69 | 0,74 |
+| TF-IDF + SVM lineal, final | 0,63 | 0,70 | 0,74 |
+| e5 + regresión logística, final | 0,60 | 0,67 | 0,72 |
 
-El F1 micro de la línea base sin texto es alto porque los artículos 8 y 25 están en casi todas las sentencias. Por eso el F1 macro y la AP macro son las métricas principales.
+- **Modelo final.** Lemas con las citas tapadas. Hiperparámetros elegidos por AP macro y un umbral por artículo, todo dentro del entrenamiento de cada partición.
+- **Comparaciones** (*bootstrap* pareado):
+  - El modelo final supera al mismo modelo sin ajustar en +0,046 [0,018; 0,078].
+  - Empata con el SVM.
+  - Supera a e5 sin ajustar por poco: +0,022 [0,000; 0,045].
+- **Prueba temporal** (entrenar hasta 2018 y evaluar desde 2019):
+  - F1 macro de 0,62 con el modelo final, frente a 0,45 con umbral 0,5. La validación cruzada sobre las mismas sentencias da 0,665.
+  - La AP casi no cambia (0,67).
+  - La pérdida real se concentra en los artículos 13, 26, 17 y 24, que se volvieron frecuentes después de 2018.
+- **Atajos.** Tapar las citas, los Estados o las personas y lugares no baja el rendimiento.
+- **Análisis de errores.** Parte del error viene de la etiqueta:
+  - El 26 cambió de criterio en 2017 (*concept drift*).
+  - El 24 y el 13 son calificaciones que se deciden en el fondo.
+  - La regla de extracción tenía errores; el de las listas con «, y» se corrigió.
+
+Documentación de la tarea: `t1_bitacora.md` (decisiones y hallazgos), `t1_glosario.md` (conceptos) y `t1_seccion_articulo.md` (borrador de la sección del artículo).
 
 ## Tarea 2: sección de cada chunk (multiclase)
 
