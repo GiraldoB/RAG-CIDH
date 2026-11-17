@@ -28,6 +28,9 @@ CLASES_SECCION = ["Hechos", "Prueba", "Fondo", "Reparaciones", "Excepciones prel
 
 BASE_DIR = Path(os.environ.get("CORTEIDH_BASE", "/content/drive/MyDrive/corteidh_rag/content/corte_idh_descargas"))
 AQUI = Path(__file__).resolve().parent
+# En local (o en cualquier equipo sin la carpeta de Drive) se usa la raíz del repositorio.
+if not (BASE_DIR / "procesado" / "clasificacion").is_dir() and (AQUI.parent / "procesado" / "clasificacion").is_dir():
+    BASE_DIR = AQUI.parent
 DIR_DATOS = BASE_DIR / "procesado" / "clasificacion"
 DIR_RESULTADOS = DIR_DATOS / "resultados"
 PARTICIONES_ARTICULOS = AQUI / "particiones_articulos.csv"     # en git: las mismas particiones para todos
