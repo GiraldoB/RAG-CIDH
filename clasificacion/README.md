@@ -69,7 +69,7 @@ Medias de las 5 particiones externas, con validación anidada. Las cifras salen 
   - El 24 y el 13 son calificaciones que se deciden en el fondo.
   - La regla de extracción tenía errores; el de las listas con «, y» se corrigió.
 
-Documentación de la tarea: `t1_bitacora.md` (decisiones y hallazgos), `t1_glosario.md` (conceptos) y `t1_seccion_articulo.md` (borrador de la sección del artículo).
+Documentación de la tarea: `t1_bitacora.md` (decisiones y hallazgos) y `t1_seccion_articulo.md` (borrador de la sección del artículo).
 
 ## Tarea 2: sección de cada chunk (multiclase)
 
