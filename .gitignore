@@ -4,4 +4,4 @@ corpus/
 procesado/
 cuadernillos/
 .ipynb_checkpoints/
-clasificacion/__pycache__/
+__pycache__/
