@@ -19,7 +19,7 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from sklearn.model_selection import StratifiedGroupKFold
 
 from comun import (ANIO_CORTE, BASE_DIR, CLASES_SECCION, DIR_DATOS, MIN_PALABRAS_CHUNK, MIN_PALABRAS_HECHOS,
-                   MIN_POSITIVOS, N_PARTICIONES, PARTICIONES_ARTICULOS, PARTICIONES_SECCIONES, SEMILLA)
+                   MIN_POSITIVOS, N_PARTICIONES, PARTICIONES_ARTICULOS, PARTICIONES_SECCIONES, SEMILLA, seccion_t2)
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -108,10 +108,12 @@ print(f"  temporal: {art['temporal'].value_counts().to_dict()}")
 base = chunks[chunks["casi_duplicado_de"].isna() & chunks["num_palabras"].ge(MIN_PALABRAS_CHUNK)]
 cols = ["chunk_id", "doc_id", "caso_id", "estado", "anio", "tipo_sentencia", "seccion", "seccion_canonica",
         "parte", "num_palabras", "texto", "texto_normalizado"]
-sec = base[base["seccion_canonica"].isin(CLASES_SECCION)][cols].reset_index(drop=True)
+base = base.assign(seccion_original=base["seccion_canonica"],
+                   seccion_canonica=[seccion_t2(c, t) for c, t in zip(base["seccion_canonica"], base["seccion"])])
+sec = base[base["seccion_canonica"].isin(CLASES_SECCION)][cols + ["seccion_original"]].reset_index(drop=True)
 sec["temporal"] = temporal(sec["anio"])
 sec.to_parquet(DIR_DATOS / "secciones.parquet", index=False)
-base[base["seccion_canonica"].eq("Sin sección")][cols].to_parquet(DIR_DATOS / "secciones_sin_etiqueta.parquet",
+base[base["seccion_original"].eq("Sin sección")][cols].to_parquet(DIR_DATOS / "secciones_sin_etiqueta.parquet",
                                                                    index=False)
 
 if not PARTICIONES_SECCIONES.exists():
@@ -124,4 +126,4 @@ if not PARTICIONES_SECCIONES.exists():
 print(f"Tarea 2: {len(sec)} chunks de {sec['caso_id'].nunique()} casos "
       f"({chunks['casi_duplicado_de'].notna().sum()} casi duplicados fuera)")
 print("  " + str(sec["seccion_canonica"].value_counts().to_dict()))
-print(f"  sin sección (aplicación): {base['seccion_canonica'].eq('Sin sección').sum()} chunks")
+print(f"  sin sección (aplicación): {base['seccion_original'].eq('Sin sección').sum()} chunks")

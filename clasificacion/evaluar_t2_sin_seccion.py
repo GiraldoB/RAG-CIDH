@@ -1,11 +1,8 @@
-"""Prueba de la Tarea 2 en los chunks «Sin sección», contra las etiquetas de secciones_romanas.py.
+"""Prueba de la Tarea 2 en los chunks «Sin sección», contra las etiquetas de referencia de secciones_romanas.py.
 
-Uso:  python clasificacion/evaluar_t2_sin_seccion.py
+Uso:  python clasificacion/evaluar_t2_sin_seccion.py      (o, desde el notebook: from evaluar_t2_sin_seccion import evaluar)
 Necesita t2_sin_seccion_predicciones.csv (lo escribe t2_secciones.ipynb) y secciones_romanas/chunks_etiquetados.csv.
 Escribe resultados/t2_eval_sin_seccion.csv (métricas) y t2_eval_sin_seccion_confusion.csv.
-
-«Otra» (introducción, procedimiento, competencia, resoluciones) no es una clase de la Tarea 2: esos chunks no se
-evalúan, pero se cuenta cuántos de ellos acepta el umbral (falsos positivos inevitables del clasificador).
 """
 import sys
 from pathlib import Path
@@ -16,29 +13,42 @@ from sklearn.metrics import accuracy_score, f1_score
 sys.path.append(str(Path(__file__).resolve().parent))
 from comun import CLASES_SECCION, DIR_DATOS, DIR_RESULTADOS  # noqa: E402
 
-pred = pd.read_csv(DIR_RESULTADOS / "t2_sin_seccion_predicciones.csv")
-ref = pd.read_csv(DIR_DATOS / "secciones_romanas" / "chunks_etiquetados.csv")
-df = pred.merge(ref[["chunk_id", "etiqueta", "origen", "nota"]], on="chunk_id", how="left", validate="one_to_one")
-assert len(df) == len(pred)
+RUTA_REFERENCIA = DIR_DATOS / "secciones_romanas" / "chunks_etiquetados.csv"
 
-filas = []
-for nombre, m in [("todas", df["etiqueta"].isin(CLASES_SECCION)),
-                  ("aceptadas (umbral)", df["etiqueta"].isin(CLASES_SECCION) & df["acepta"]),
-                  ("sin cruzar secciones", df["etiqueta"].isin(CLASES_SECCION) & df["nota"].isna())]:
-    d = df[m]
-    if len(d):
-        filas.append(dict(subconjunto=nombre, n=len(d), exactitud=accuracy_score(d["etiqueta"], d["seccion_predicha"]),
-                          f1_macro=f1_score(d["etiqueta"], d["seccion_predicha"], labels=sorted(d["etiqueta"].unique()),
-                                            average="macro", zero_division=0)))
-for origen, d in df[df["etiqueta"].isin(CLASES_SECCION)].groupby("origen"):
-    filas.append(dict(subconjunto=f"origen: {origen}", n=len(d), exactitud=accuracy_score(d["etiqueta"], d["seccion_predicha"])))
-otra = df["etiqueta"].eq("Otra")
-filas.append(dict(subconjunto="«Otra» aceptada por el umbral (no evaluable)", n=int((otra & df["acepta"]).sum())))
-filas.append(dict(subconjunto="sin etiqueta de referencia todavía", n=int(df["etiqueta"].isna().sum())))
-res = pd.DataFrame(filas)
-res.to_csv(DIR_RESULTADOS / "t2_eval_sin_seccion.csv", index=False)
-d = df[df["etiqueta"].isin(CLASES_SECCION)]
-conf = pd.crosstab(d["etiqueta"], d["seccion_predicha"], rownames=["referencia"], colnames=["predicha"])
-conf.to_csv(DIR_RESULTADOS / "t2_eval_sin_seccion_confusion.csv")
-print(res.round(3).to_string(index=False))
-print(conf.to_string())
+
+def _fila(nombre, d):
+    return dict(subconjunto=nombre, n=len(d), exactitud=accuracy_score(d["etiqueta"], d["seccion_predicha"]),
+                f1_macro=f1_score(d["etiqueta"], d["seccion_predicha"], labels=sorted(d["etiqueta"].unique()),
+                                  average="macro", zero_division=0))
+
+
+def evaluar(pred, guardar=True):
+    """pred: columnas chunk_id, anio, seccion_predicha, acepta. Devuelve (métricas, matriz de confusión, unión)."""
+    ref = pd.read_csv(RUTA_REFERENCIA)
+    df = pred.merge(ref[["chunk_id", "etiqueta", "origen", "nota"]], on="chunk_id", how="left", validate="one_to_one")
+    assert len(df) == len(pred)
+    assert df["etiqueta"].dropna().isin(CLASES_SECCION).all(), "la referencia tiene etiquetas fuera de CLASES_SECCION"
+    ev = df[df["etiqueta"].notna()]
+    filas = [_fila("todas", ev), _fila("aceptadas (umbral)", ev[ev["acepta"]]),
+             _fila("sin cruzar secciones", ev[ev["nota"].isna()]),
+             _fila("sentencias 1987–1999", ev[ev["anio"] < 2000]), _fila("sentencias desde 2000", ev[ev["anio"] >= 2000])]
+    filas += [_fila(f"origen: {o}", d) for o, d in ev.groupby("origen")]
+    filas.append(dict(subconjunto="sin etiqueta de referencia", n=int(df["etiqueta"].isna().sum())))
+    res = pd.DataFrame(filas)
+    conf = pd.crosstab(ev["etiqueta"], ev["seccion_predicha"], rownames=["referencia"], colnames=["predicha"])
+    acep = ev[ev["acepta"]]
+    prec = (acep["etiqueta"] == acep["seccion_predicha"]).groupby(acep["seccion_predicha"]).agg(["size", "mean"])
+    prec.columns = ["aceptados", "precisión"]
+    if guardar:
+        res.to_csv(DIR_RESULTADOS / "t2_eval_sin_seccion.csv", index=False)
+        conf.to_csv(DIR_RESULTADOS / "t2_eval_sin_seccion_confusion.csv")
+        prec.to_csv(DIR_RESULTADOS / "t2_eval_sin_seccion_precision_aceptados.csv")
+    return res, conf, prec
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    res, conf, prec = evaluar(pd.read_csv(DIR_RESULTADOS / "t2_sin_seccion_predicciones.csv"))
+    print(res.round(3).to_string(index=False))
+    print(conf.to_string())
+    print(prec.round(3).to_string())

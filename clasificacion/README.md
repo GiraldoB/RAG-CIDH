@@ -74,10 +74,10 @@ Documentación de la tarea: `t1_bitacora.md` (decisiones y hallazgos), `t1_glosa
 ## Tarea 2: sección de cada chunk (multiclase)
 
 - **Entrada:** `texto` del chunk, sin la cabecera (`texto_con_contexto` incluye el título de la sección: no usarlo). Los embeddings guardados en la Entrega 1 se calcularon con cabecera; hay que recalcularlos.
-- **Clases:** Hechos, Prueba, Fondo, Reparaciones, Excepciones preliminares, Puntos resolutivos.
-- **Datos:** 59.184 chunks de 422 casos. Se excluyen los casi duplicados y los chunks de menos de 20 palabras.
-- **Particiones:** 5, por caso (`StratifiedGroupKFold`): un caso nunca está en entrenamiento y prueba a la vez.
-- **Conjunto de aplicación:** 1.718 chunks «Sin sección» (`cargar_sin_seccion`).
+- **Clases:** Hechos, Prueba, Fondo, Reparaciones, Excepciones preliminares, Puntos resolutivos y **Otra**. «Otra» agrupa introducción de la causa, procedimiento, competencia, consideraciones previas, reconocimiento de responsabilidad, admisibilidad y medidas provisionales (`seccion_t2()` en `comun.py`). Se agregó el 17-11-2026 porque el 32 % de los chunks «Sin sección» son trámite y, sin esa clase, recibían a la fuerza una sección equivocada.
+- **Datos:** 68.093 chunks de 424 casos. Se excluyen los casi duplicados y los chunks de menos de 20 palabras. La sección original del notebook de la Entrega 1 queda en `seccion_original`.
+- **Particiones:** 5, por caso (`StratifiedGroupKFold`): un caso nunca está en entrenamiento y prueba a la vez. Se regeneraron al agregar «Otra».
+- **Conjunto de aplicación:** 1.718 chunks «Sin sección» (`cargar_sin_seccion`). Tienen etiquetas de referencia por sección del PDF (`secciones_romanas.py`) y se evalúan con `evaluar_t2_sin_seccion.py`; ver `t2_etiquetas_sin_seccion.md`.
 
 ## Contrato
 

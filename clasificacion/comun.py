@@ -24,7 +24,20 @@ ANIO_CORTE = 2018            # prueba temporal: entrena con sentencias hasta 201
 MIN_POSITIVOS = 25           # un artículo entra como etiqueta si se declara violado en al menos 25 sentencias
 MIN_PALABRAS_HECHOS = 100    # sentencias con menos palabras de hechos quedan fuera
 MIN_PALABRAS_CHUNK = 20
-CLASES_SECCION = ["Hechos", "Prueba", "Fondo", "Reparaciones", "Excepciones preliminares", "Puntos resolutivos"]
+CLASES_SECCION = ["Hechos", "Prueba", "Fondo", "Reparaciones", "Excepciones preliminares", "Puntos resolutivos", "Otra"]
+# «Otra»: trámite y contexto, no la decisión. Sin esta clase, el 32 % de los chunks «Sin sección» (introducción,
+# procedimiento…) recibía a la fuerza una de las otras seis (ver t2_etiquetas_sin_seccion.md).
+OTRA_CANONICAS = {"Introducción de la causa", "Procedimiento ante la Corte", "Competencia", "Consideraciones previas"}
+# Dentro de «Otras» del notebook hay de todo (títulos de artículos que son Fondo, costas…): solo estos títulos son «Otra»
+RE_OTRA_TITULO = re.compile(r"^(?:[IVXL]+(?:[-.]\d+)?\.?\s*[-–—]?\s*)?(?:RECONOCIMIENTO|ADMISIBILIDAD|"
+                            r"CONSIDERACI[OÓ]N(?:ES)? PREVIAS?|MEDIDAS PROVISIONALES)", re.IGNORECASE)
+
+
+def seccion_t2(canonica, titulo):
+    """Etiqueta de la tarea 2 a partir de seccion_canonica y del título original; None si el chunk no entra."""
+    if canonica in OTRA_CANONICAS or (canonica == "Otras" and RE_OTRA_TITULO.match(str(titulo).strip())):
+        return "Otra"
+    return canonica if canonica in CLASES_SECCION else None
 
 BASE_DIR = Path(os.environ.get("CORTEIDH_BASE", "/content/drive/MyDrive/corteidh_rag/content/corte_idh_descargas"))
 AQUI = Path(__file__).resolve().parent

@@ -129,6 +129,53 @@ Lectura:
   fragmentos y son mejores que la predicción. Si se quiere mantener el clasificador, conviene agregarle la clase
   «Otra»: en las sentencias modernas hay muchos fragmentos de introducción y procedimiento para entrenarla.
 
+## Clase «Otra» en la Tarea 2 (17-11-2026)
+
+Se agregó una séptima clase, **Otra**: el trámite y el contexto, no la decisión.
+
+- **Definición:** `seccion_t2()` en `comun.py`. Entran las secciones canónicas Introducción de la causa,
+  Procedimiento ante la Corte, Competencia y Consideraciones previas. También entran las secciones «Otras» del
+  notebook cuyo título empieza por Reconocimiento, Admisibilidad, Consideración previa o Medidas provisionales.
+- **Qué queda fuera:** el resto de «Otras» sigue excluido, porque mezcla títulos de artículos (que son Fondo),
+  costas y otros contenidos.
+- **Datos:** el conjunto pasa de 59.184 a **68.093 chunks**, de los que 8.909 son Otra. Las particiones
+  (`particiones_secciones.csv`) se regeneraron, siguen agrupadas por caso y la diferencia máxima de proporción entre
+  particiones es 0,003. La Tarea 1 no cambia: `articulos.parquet` queda idéntico.
+- **Notebook:** se reemplazó la muestra de revisión manual por la evaluación contra estas etiquetas (bloque 8.1).
+  `evaluar_t2_sin_seccion.py` ahora se puede importar desde el notebook.
+- **Respaldo:** los resultados anteriores, con seis clases, quedaron en `resultados/antes_clase_otra/`.
+
+**Validación cruzada.** El mejor modelo sigue siendo `tfidf_lr_texto`. Su F1 macro baja a 0,846 ± 0,006
+(antes 0,872) porque ahora tiene una clase más y es difícil. El F1 de Otra es 0,83. En la prueba temporal da 0,863.
+
+**En los 1.718 chunks «Sin sección»**, ahora todos evaluables:
+
+| | Antes (6 clases) | Ahora (7 clases) |
+|---|---|---|
+| Exactitud, todos | 0,52 | **0,69** |
+| F1 macro, todos | 0,50 | **0,67** |
+| Exactitud, aceptados por el umbral | 0,63 (1.210 aceptados) | **0,81** (1.052 aceptados, umbral 0,75) |
+| Sentencias 1987–1999 | 0,45 | **0,65** |
+| Sentencias desde 2000 | 0,67 | **0,78** |
+
+Precisión de los aceptados según la sección predicha:
+
+| Sección predicha | Precisión |
+|---|---|
+| Excepciones preliminares | 0,93 |
+| Fondo | 0,90 |
+| Otra | 0,86 |
+| Prueba | 0,85 |
+| Reparaciones | 0,79 |
+| Puntos resolutivos | 0,56 (solo 9 aceptados) |
+| Hechos | 0,49 |
+
+- **El punto débil sigue siendo Hechos.** 80 chunks de Otra se predicen como Hechos: son procedimiento ante la
+  Comisión y resúmenes de la denuncia, que narran fechas y actuaciones igual que los hechos probados. Para el filtro
+  del RAG conviene no reasignar chunks a Hechos, o exigirles un umbral más alto.
+- **Efecto en `buscar()` (bloque 9):** sigue en Δ = 0. Los chunks reasignados casi no aparecen entre los relevantes
+  de las consultas juzgadas.
+
 ## Limitaciones y pendientes
 
 - **134 fragmentos cruzan dos secciones.** El notebook no vio el límite y juntó párrafos de ambas. Se les da la
@@ -142,5 +189,4 @@ Lectura:
 - **Arreglo de fondo.** Llevar estos cinco formatos a `RE_TITULO` del notebook y volver a generar los fragmentos
   dejaría etiquetadas por título las 158 secciones de arriba en todo el corpus. Eso cambia `chunks.parquet` y los
   índices del RAG, así que hay que acordarlo con el equipo.
-- **Clase «Otra» en la Tarea 2:** no se hizo, porque cambia el notebook y los resultados de la persona 2.
 - Se borró el Excel para marcar límites a mano (`limites_secciones.xlsx` y su script), porque este flujo lo reemplaza.
